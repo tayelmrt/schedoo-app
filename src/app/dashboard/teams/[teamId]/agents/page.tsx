@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import Link                    from 'next/link'
-import { Plus, Copy, Trash2, Check, UserCheck } from 'lucide-react'
+import { Plus, Copy, Trash2, Check, UserCheck, Link2, Share2 } from 'lucide-react'
 import type { Agent }          from '@/lib/types'
 
 export default function AgentsPage({ params }: { params: { teamId: string } }) {
   const supabase  = createClient()
   const [agents, setAgents]   = useState<Agent[]>([])
+  const [teamToken, setTeamToken] = useState('')
   const [loading, setLoading] = useState(true)
   const [name, setName]       = useState('')
   const [saving, setSaving]   = useState(false)
@@ -22,7 +23,13 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
     setLoading(false)
   }
 
-  useEffect(() => { fetchAgents() }, [])
+  async function fetchTeam() {
+    const { data } = await supabase.from('teams')
+      .select('share_token').eq('id', params.teamId).single()
+    if (data) setTeamToken(data.share_token)
+  }
+
+  useEffect(() => { fetchAgents(); fetchTeam() }, [])
 
   async function addAgent(e: React.FormEvent) {
     e.preventDefault()
@@ -51,7 +58,36 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
       <Link href={`/dashboard/teams/${params.teamId}`} className="text-sm text-slate-400 hover:text-blue-600 mb-2 inline-block">
         ← Team
       </Link>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Agents</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-4">Agents</h1>
+
+      {/* Unified team link */}
+      <div className="card mb-6 border-blue-200 bg-blue-50/40">
+        <div className="card-body">
+          <h2 className="font-semibold text-blue-900 mb-1 flex items-center gap-2">
+            <Share2 className="w-4 h-4" /> اللينك الموحّد للفريق
+          </h2>
+          <p className="text-xs text-slate-500 mb-3">
+            ابعت اللينك ده على جروب الواتساب — كل واحد يفتحه ويختار اسمه ويسجّل أيامه.
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-sm text-blue-700 bg-white rounded-lg border border-blue-200 px-3 py-2.5 truncate">
+              {teamToken ? `${appUrl}/team/${teamToken}` : 'جاري التحميل…'}
+            </code>
+            <button onClick={() => {
+                navigator.clipboard.writeText(`${appUrl}/team/${teamToken}`)
+                setCopied('TEAM'); setTimeout(() => setCopied(null), 2000)
+              }}
+              disabled={!teamToken}
+              className="btn btn-primary btn-sm flex-shrink-0">
+              {copied === 'TEAM' ? <><Check className="w-4 h-4" /> اتنسخ</> : <><Copy className="w-4 h-4" /> نسخ</>}
+            </button>
+            <a href={teamToken ? `${appUrl}/team/${teamToken}` : '#'} target="_blank" rel="noopener noreferrer"
+              className="btn btn-ghost btn-sm flex-shrink-0">
+              <Link2 className="w-4 h-4" /> فتح
+            </a>
+          </div>
+        </div>
+      </div>
 
       {/* Add form */}
       <div className="card mb-6">
