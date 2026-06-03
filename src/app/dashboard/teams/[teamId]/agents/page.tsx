@@ -3,17 +3,23 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import Link                    from 'next/link'
-import { Plus, Copy, Trash2, Check, UserCheck, Link2, Share2 } from 'lucide-react'
+import { Plus, Copy, Trash2, Check, Link2, Share2, ArrowRightLeft, X } from 'lucide-react'
 import type { Agent }          from '@/lib/types'
+
+interface TeamLite { id: string; name: string }
 
 export default function AgentsPage({ params }: { params: { teamId: string } }) {
   const supabase  = createClient()
   const [agents, setAgents]   = useState<Agent[]>([])
   const [teamToken, setTeamToken] = useState('')
+  const [otherTeams, setOtherTeams] = useState<TeamLite[]>([])
   const [loading, setLoading] = useState(true)
   const [name, setName]       = useState('')
   const [saving, setSaving]   = useState(false)
   const [copied, setCopied]   = useState<string | null>(null)
+  const [moveAgent, setMoveAgent] = useState<Agent | null>(null)
+  const [moveTarget, setMoveTarget] = useState('')
+  const [moving, setMoving]   = useState(false)
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
   async function fetchAgents() {
@@ -29,7 +35,13 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
     if (data) setTeamToken(data.share_token)
   }
 
-  useEffect(() => { fetchAgents(); fetchTeam() }, [])
+  async function fetchOtherTeams() {
+    const { data } = await supabase.from('teams')
+      .select('id, name').neq('id', params.teamId).order('name')
+    setOtherTeams(data ?? [])
+  }
+
+  useEffect(() => { fetchAgents(); fetchTeam(); fetchOtherTeams() }, [])
 
   async function addAgent(e: React.FormEvent) {
     e.preventDefault()
@@ -41,9 +53,20 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
     fetchAgents()
   }
 
-  async function deleteAgent(id: string) {
-    if (!confirm('Delete this agent? Their schedule data will also be removed.')) return
+  async function deleteAgent(id: string, agentName: string) {
+    if (!confirm(`حذف الأجينت "${agentName}"؟ سيتم حذف كل جداوله نهائياً. لو عايز تنقله بدل الحذف استخدم زر النقل.`)) return
     await supabase.from('agents').delete().eq('id', id)
+    fetchAgents()
+  }
+
+  async function doMove() {
+    if (!moveAgent || !moveTarget) return
+    setMoving(true)
+    // Move agent to the new team. Old schedule entries stay tied to old team's weeks (historical).
+    await supabase.from('agents').update({ team_id: moveTarget }).eq('id', moveAgent.id)
+    setMoving(false)
+    setMoveAgent(null)
+    setMoveTarget('')
     fetchAgents()
   }
 
@@ -139,10 +162,18 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
                       </div>
                     </td>
                     <td className="p-4 text-right">
-                      <button onClick={() => deleteAgent(a.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button onClick={() => { setMoveAgent(a); setMoveTarget('') }}
+                          title="نقل لتيم آخر"
+                          className="text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-1 text-xs font-medium">
+                          <ArrowRightLeft className="w-4 h-4" /> نقل
+                        </button>
+                        <button onClick={() => deleteAgent(a.id, a.name)}
+                          title="حذف"
+                          className="text-slate-300 hover:text-red-500 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -151,6 +182,47 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Move agent modal */}
+      {moveAgent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setMoveAgent(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-blue-500" /> نقل الأجينت
+              </h3>
+              <button onClick={() => setMoveAgent(null)} className="text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">
+              نقل <strong className="text-slate-800">{moveAgent.name}</strong> لتيم آخر.
+              تسجيله الجديد هيكون على التيم الجديد. الجداول القديمة تفضل محفوظة على التيم الحالي.
+            </p>
+
+            {otherTeams.length === 0 ? (
+              <div className="bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-lg px-4 py-3">
+                لا يوجد تيم آخر للنقل إليه. أنشئ تيم جديد أولاً.
+              </div>
+            ) : (
+              <>
+                <label className="label">اختر التيم الجديد</label>
+                <select className="input mb-5" value={moveTarget} onChange={e => setMoveTarget(e.target.value)}>
+                  <option value="">— اختر —</option>
+                  {otherTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <div className="flex gap-3 justify-end">
+                  <button onClick={() => setMoveAgent(null)} className="btn btn-ghost">إلغاء</button>
+                  <button onClick={doMove} disabled={!moveTarget || moving} className="btn btn-primary">
+                    {moving ? 'جاري النقل…' : 'نقل الأجينت'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

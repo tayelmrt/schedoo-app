@@ -192,40 +192,79 @@ export async function POST(
 
   // ── 6. Email managers ───────────────────────────────────────────────────
   const managerEmails: string[] = week.teams?.manager_emails ?? []
-  if (managerEmails.length > 0 && process.env.RESEND_API_KEY) {
-    await resend.emails.send({
-      from:    'Schedoo <noreply@yourdomain.com>',
-      to:      managerEmails,
-      subject: `📅 Schedule Ready: ${team} — ${weekLabel}`,
-      html: `
-        <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-          <div style="background:#1e3a5f;color:#fff;padding:24px 32px;border-radius:12px 12px 0 0">
-            <h1 style="margin:0;font-size:20px">Weekly Schedule Ready</h1>
-            <p style="margin:8px 0 0;opacity:.75;font-size:14px">${team} · ${weekLabel}</p>
-          </div>
-          <div style="background:#fff;padding:24px 32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
-            <p style="color:#475569">The schedule for this week has been exported and is ready for review.</p>
-            <div style="margin:24px 0;display:flex;gap:12px">
-              ${excelSigned?.signedUrl ? `
-              <a href="${excelSigned.signedUrl}" style="display:inline-block;background:#1e3a5f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
-                ⬇ Download Excel
-              </a>` : ''}
-              ${pdfSigned?.signedUrl ? `
-              <a href="${pdfSigned.signedUrl}" style="display:inline-block;background:#f1f5f9;color:#1e293b;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
-                ⬇ Download PDF
-              </a>` : ''}
+  const fromAddress = process.env.RESEND_FROM ?? 'Schedoo <onboarding@resend.dev>'
+  let emailStatus: { sent: boolean; error?: string } = { sent: false }
+
+  // Build an inline HTML table of the full schedule (so all data is IN the email)
+  const headCells = dayHeaders.map(d =>
+    `<th style="background:#1e3a5f;color:#fff;padding:8px 10px;font-size:12px;border:1px solid #16314f">${d.label}</th>`
+  ).join('')
+
+  const bodyRows = (agents ?? []).map(agent => {
+    const cells = dayHeaders.map(({ day }) => {
+      const shift = getShift(getEntry(agent.id, day)?.shift_id ?? null)
+      if (!shift) return `<td style="padding:8px 10px;border:1px solid #e2e8f0;text-align:center;color:#cbd5e1;font-size:12px">—</td>`
+      const r = parseInt(shift.color_code.slice(1,3),16)
+      const g = parseInt(shift.color_code.slice(3,5),16)
+      const b = parseInt(shift.color_code.slice(5,7),16)
+      const bg = `rgba(${r},${g},${b},0.15)`
+      return `<td style="padding:8px 10px;border:1px solid #e2e8f0;text-align:center;font-size:12px;font-weight:600;color:${shift.color_code};background:${bg}">${shift.name}</td>`
+    }).join('')
+    return `<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;font-size:12px;white-space:nowrap">${agent.name}</td>${cells}</tr>`
+  }).join('')
+
+  const scheduleTable = `
+    <table style="border-collapse:collapse;width:100%;margin:16px 0">
+      <thead><tr>
+        <th style="background:#1e3a5f;color:#fff;padding:8px 12px;font-size:12px;text-align:left;border:1px solid #16314f">Agent</th>
+        ${headCells}
+      </tr></thead>
+      <tbody>${bodyRows || `<tr><td colspan="8" style="padding:16px;text-align:center;color:#94a3b8">لا توجد تسجيلات</td></tr>`}</tbody>
+    </table>`
+
+  if (managerEmails.length === 0) {
+    emailStatus = { sent: false, error: 'لا يوجد إيميلات مانجر — أضفهم من إعدادات التيم' }
+  } else if (!process.env.RESEND_API_KEY) {
+    emailStatus = { sent: false, error: 'مفتاح Resend غير مضبوط (RESEND_API_KEY)' }
+  } else {
+    try {
+      const { error } = await resend.emails.send({
+        from:    fromAddress,
+        to:      managerEmails,
+        subject: `📅 جدول ${team} — ${weekLabel}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:760px;margin:0 auto">
+            <div style="background:#1e3a5f;color:#fff;padding:24px 32px;border-radius:12px 12px 0 0">
+              <h1 style="margin:0;font-size:20px">جدول الأسبوع جاهز</h1>
+              <p style="margin:8px 0 0;opacity:.8;font-size:14px">${team} · ${weekLabel}</p>
+              <p style="margin:6px 0 0;font-size:12px;opacity:.7">
+                الحالة: ${week.status === 'confirmed' ? '✅ مؤكَّد' : '🟡 غير مؤكَّد (مسوّدة)'}
+              </p>
             </div>
-            <p style="color:#94a3b8;font-size:12px">Links expire in 7 days.</p>
+            <div style="background:#fff;padding:24px 32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
+              <p style="color:#475569;margin:0 0 8px">الجدول الكامل للأسبوع:</p>
+              ${scheduleTable}
+              <div style="margin:20px 0 8px">
+                ${excelSigned?.signedUrl ? `<a href="${excelSigned.signedUrl}" style="display:inline-block;background:#1e3a5f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-left:8px">⬇ تحميل Excel</a>` : ''}
+                ${pdfSigned?.signedUrl ? `<a href="${pdfSigned.signedUrl}" style="display:inline-block;background:#f1f5f9;color:#1e293b;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">⬇ تحميل PDF</a>` : ''}
+              </div>
+              <p style="color:#94a3b8;font-size:12px">روابط التحميل صالحة لمدة 7 أيام.</p>
+            </div>
           </div>
-        </div>
-      `,
-    })
+        `,
+      })
+      emailStatus = error ? { sent: false, error: error.message } : { sent: true }
+    } catch (e: any) {
+      emailStatus = { sent: false, error: e?.message ?? 'فشل إرسال الإيميل' }
+    }
   }
 
   return NextResponse.json({
-    success: true,
+    success:   true,
     excel_url: excelSigned?.signedUrl,
     pdf_url:   pdfSigned?.signedUrl,
-    emailed:   managerEmails.length > 0,
+    emailed:   emailStatus.sent,
+    email_error: emailStatus.error ?? null,
+    recipients: managerEmails,
   })
 }

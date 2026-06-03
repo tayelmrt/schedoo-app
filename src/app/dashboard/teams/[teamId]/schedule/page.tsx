@@ -127,13 +127,20 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
     if (!week) return
     setExporting(true)
     try {
-      const res = await fetch(`/api/export/${week.id}`, { method: 'POST' })
+      const res  = await fetch(`/api/export/${week.id}`, { method: 'POST' })
       const json = await res.json()
       if (json.error) throw new Error(json.error)
-      showToast('Export sent to managers ✉️')
+
+      if (json.emailed) {
+        showToast(`تم الإرسال للمانجر ✉️ (${json.recipients?.length || 0})`)
+      } else if (json.email_error) {
+        showToast('اتعمل Export بس الإيميل لم يُرسل: ' + json.email_error)
+      } else {
+        showToast('تم إنشاء الملفات ✅')
+      }
       loadAll()
     } catch (err: any) {
-      showToast('Export failed: ' + err.message)
+      showToast('فشل الـ Export: ' + err.message)
     }
     setExporting(false)
   }
