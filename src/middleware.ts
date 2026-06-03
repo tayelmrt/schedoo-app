@@ -10,15 +10,16 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Public routes that don't need auth
-  const publicPaths = ['/auth/login', '/auth/callback', '/schedule']
+  const publicPaths = ['/auth/login', '/auth/callback', '/schedule', '/team']
   const isPublic = publicPaths.some(p => pathname.startsWith(p))
 
   if (!session && !isPublic) {
     return NextResponse.redirect(new URL('/auth/login', req.url))
   }
 
+  // After login, send to the routing gate (/) which decides admin vs agent
   if (session && pathname === '/auth/login') {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+    return NextResponse.redirect(new URL('/', req.url))
   }
 
   return res

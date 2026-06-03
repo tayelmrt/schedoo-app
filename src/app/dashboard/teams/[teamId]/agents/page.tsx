@@ -15,6 +15,7 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
   const [otherTeams, setOtherTeams] = useState<TeamLite[]>([])
   const [loading, setLoading] = useState(true)
   const [name, setName]       = useState('')
+  const [agentEmail, setAgentEmail] = useState('')
   const [saving, setSaving]   = useState(false)
   const [copied, setCopied]   = useState<string | null>(null)
   const [moveAgent, setMoveAgent] = useState<Agent | null>(null)
@@ -47,9 +48,23 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
-    await supabase.from('agents').insert({ team_id: params.teamId, name: name.trim() })
-    setName('')
+    await supabase.from('agents').insert({
+      team_id: params.teamId,
+      name: name.trim(),
+      email: agentEmail.trim() ? agentEmail.trim().toLowerCase() : null,
+      status: 'pending',
+    })
+    setName(''); setAgentEmail('')
     setSaving(false)
+    fetchAgents()
+  }
+
+  async function approveAgent(id: string) {
+    await supabase.from('agents').update({ status: 'approved' }).eq('id', id)
+    fetchAgents()
+  }
+  async function revokeAgent(id: string) {
+    await supabase.from('agents').update({ status: 'pending' }).eq('id', id)
     fetchAgents()
   }
 
@@ -68,12 +83,6 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
     setMoveAgent(null)
     setMoveTarget('')
     fetchAgents()
-  }
-
-  function copyLink(token: string) {
-    navigator.clipboard.writeText(`${appUrl}/schedule/${token}`)
-    setCopied(token)
-    setTimeout(() => setCopied(null), 2000)
   }
 
   return (
@@ -115,13 +124,18 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
       {/* Add form */}
       <div className="card mb-6">
         <div className="card-body">
-          <form onSubmit={addAgent} className="flex gap-3">
-            <input className="input flex-1" placeholder="Agent name" required
+          <form onSubmit={addAgent} className="flex gap-3 flex-wrap">
+            <input className="input flex-1 min-w-[160px]" placeholder="اسم الأجينت" required
               value={name} onChange={e => setName(e.target.value)} />
+            <input className="input flex-1 min-w-[200px]" type="email" placeholder="إيميل الشركة (للدخول)"
+              value={agentEmail} onChange={e => setAgentEmail(e.target.value)} />
             <button type="submit" disabled={saving} className="btn btn-primary">
-              <Plus className="w-4 h-4" /> {saving ? 'Adding…' : 'Add Agent'}
+              <Plus className="w-4 h-4" /> {saving ? 'جاري الإضافة…' : 'إضافة'}
             </button>
           </form>
+          <p className="text-xs text-slate-400 mt-2">
+            الأجينت هيسجّل بنفس الإيميل ده على التول، وبعدها توافق على دخوله من الجدول تحت.
+          </p>
         </div>
       </div>
 
@@ -132,8 +146,9 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-left p-4 text-slate-500 font-medium">Agent</th>
-                  <th className="text-left p-4 text-slate-500 font-medium">Share Link</th>
+                  <th className="text-right p-4 text-slate-500 font-medium">الأجينت</th>
+                  <th className="text-right p-4 text-slate-500 font-medium">الإيميل</th>
+                  <th className="text-center p-4 text-slate-500 font-medium">الحالة</th>
                   <th className="p-4" />
                 </tr>
               </thead>
@@ -148,20 +163,29 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
                         <span className="font-medium text-slate-800">{a.name}</span>
                       </div>
                     </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <code className="text-xs text-slate-400 bg-slate-50 rounded px-2 py-1 truncate max-w-xs">
-                          {appUrl}/schedule/{a.share_token}
-                        </code>
-                        <button onClick={() => copyLink(a.share_token)}
-                          className="text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0">
-                          {copied === a.share_token
-                            ? <Check className="w-4 h-4 text-emerald-500" />
-                            : <Copy className="w-4 h-4" />}
-                        </button>
-                      </div>
+                    <td className="p-4 text-slate-500 text-xs">
+                      {a.email || <span className="text-slate-300">— مفيش إيميل —</span>}
+                    </td>
+                    <td className="p-4 text-center">
+                      {a.status === 'approved' ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">✓ مفعّل</span>
+                      ) : a.auth_user_id ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full">⏳ بانتظار الموافقة</span>
+                      ) : a.email ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">لم يسجّل بعد</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-slate-100 text-slate-400 px-2.5 py-1 rounded-full">بدون حساب</span>
+                      )}
                     </td>
                     <td className="p-4 text-right">
+                      {a.status !== 'approved' && a.auth_user_id && (
+                        <button onClick={() => approveAgent(a.id)}
+                          className="btn btn-success btn-sm ml-2">✓ موافقة</button>
+                      )}
+                      {a.status === 'approved' && (
+                        <button onClick={() => revokeAgent(a.id)}
+                          className="text-xs text-slate-400 hover:text-amber-600 underline ml-2">إلغاء التفعيل</button>
+                      )}
                       <div className="flex items-center justify-end gap-3">
                         <button onClick={() => { setMoveAgent(a); setMoveTarget('') }}
                           title="نقل لتيم آخر"
@@ -178,7 +202,7 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
                   </tr>
                 ))}
                 {agents.length === 0 && (
-                  <tr><td colSpan={3} className="p-8 text-center text-slate-400">No agents yet</td></tr>
+                  <tr><td colSpan={4} className="p-8 text-center text-slate-400">لا يوجد أجينتس بعد</td></tr>
                 )}
               </tbody>
             </table>

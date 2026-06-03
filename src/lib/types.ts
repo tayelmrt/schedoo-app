@@ -44,6 +44,9 @@ export interface Agent {
   name: string
   share_token: string
   is_active: boolean
+  email: string | null
+  auth_user_id: string | null
+  status: 'pending' | 'approved'
   created_at: string
 }
 

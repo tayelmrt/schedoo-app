@@ -13,10 +13,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [email, setEmail] = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    (async () => {
+      const { data } = await supabase.auth.getUser()
       if (!data.user) { router.push('/auth/login'); return }
+      // Only admins may access the dashboard; agents are sent to their area
+      const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
+      if (me && me.role !== 'admin') { router.replace('/me'); return }
       setEmail(data.user.email ?? '')
-    })
+    })()
   }, [])
 
   async function signOut() {
