@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { Settings2, Users, Calendar, BarChart2, ChevronRight, Settings, Umbrella } from 'lucide-react'
+import { Settings2, Users, Calendar, BarChart2, ChevronRight, Settings, Umbrella, LineChart } from 'lucide-react'
 
 const sections = [
   { href: 'shifts',       icon: Settings2, label: 'Shifts',         desc: 'Define shift types, times, and colors' },
-  { href: 'requirements', icon: BarChart2, label: 'Requirements',    desc: 'Minimum agents per shift per day' },
+  { href: 'requirements', icon: BarChart2, label: 'Requirements',    desc: 'Min & Max agents per shift per day' },
   { href: 'agents',       icon: Users,     label: 'Agents',          desc: 'Add agents and get share links' },
   { href: 'schedule',     icon: Calendar,  label: 'Schedule',        desc: 'View matrix, validate, and export' },
+  { href: 'reports',      icon: LineChart, label: 'التقارير',          desc: 'إحصائيات الشيفتات الشهرية لكل أجينت' },
   { href: 'holidays',     icon: Umbrella,  label: 'الإجازات والتعويضات', desc: 'إجازات رسمية وتتبّع أيام التعويض' },
   { href: 'settings',     icon: Settings,  label: 'Settings',        desc: 'Admins, managers, and team config' },
 ]
