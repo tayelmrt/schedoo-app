@@ -3,12 +3,10 @@ import { createServiceClient }       from '@/lib/supabase/server'
 import ExcelJS                       from 'exceljs'
 import jsPDF                         from 'jspdf'
 import autoTable                     from 'jspdf-autotable'
-import { Resend }                    from 'resend'
+import nodemailer                    from 'nodemailer'
 import { format, addDays, parseISO } from 'date-fns'
 import type { Agent, Shift, ScheduleEntry, Week } from '@/lib/types'
 import { DAYS }                      from '@/lib/types'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 function hexToArgb(hex: string): string {
   return 'FF' + hex.replace('#', '').toUpperCase()
@@ -190,9 +188,10 @@ export async function POST(
     export_url_pdf:   pdfSigned?.signedUrl   ?? null,
   }).eq('id', params.weekId)
 
-  // ── 6. Email managers ───────────────────────────────────────────────────
+  // ── 6. Email managers (via Gmail SMTP) ────────────────────────────────────
   const managerEmails: string[] = week.teams?.manager_emails ?? []
-  const fromAddress = process.env.RESEND_FROM ?? 'Schedoo <onboarding@resend.dev>'
+  const gmailUser = process.env.GMAIL_USER
+  const gmailPass = process.env.GMAIL_APP_PASSWORD
   let emailStatus: { sent: boolean; error?: string } = { sent: false }
 
   // Build an inline HTML table of the full schedule (so all data is IN the email)
@@ -224,14 +223,23 @@ export async function POST(
 
   if (managerEmails.length === 0) {
     emailStatus = { sent: false, error: 'لا يوجد إيميلات مانجر — أضفهم من إعدادات التيم' }
-  } else if (!process.env.RESEND_API_KEY) {
-    emailStatus = { sent: false, error: 'مفتاح Resend غير مضبوط (RESEND_API_KEY)' }
+  } else if (!gmailUser || !gmailPass) {
+    emailStatus = { sent: false, error: 'إعدادات Gmail غير مضبوطة (GMAIL_USER / GMAIL_APP_PASSWORD)' }
   } else {
     try {
-      const { error } = await resend.emails.send({
-        from:    fromAddress,
-        to:      managerEmails,
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass },
+      })
+
+      await transporter.sendMail({
+        from:    `Schedoo <${gmailUser}>`,
+        to:      managerEmails.join(', '),
         subject: `📅 جدول ${team} — ${weekLabel}`,
+        attachments: [
+          { filename: `schedule-${week.week_start_date}.xlsx`, content: excelBuffer },
+          { filename: `schedule-${week.week_start_date}.pdf`,  content: pdfBuffer },
+        ],
         html: `
           <div style="font-family:Arial,sans-serif;max-width:760px;margin:0 auto">
             <div style="background:#1e3a5f;color:#fff;padding:24px 32px;border-radius:12px 12px 0 0">
@@ -242,18 +250,18 @@ export async function POST(
               </p>
             </div>
             <div style="background:#fff;padding:24px 32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
-              <p style="color:#475569;margin:0 0 8px">الجدول الكامل للأسبوع:</p>
+              <p style="color:#475569;margin:0 0 8px">الجدول الكامل للأسبوع (والملفات مرفقة Excel + PDF):</p>
               ${scheduleTable}
+              ${(excelSigned?.signedUrl || pdfSigned?.signedUrl) ? `
               <div style="margin:20px 0 8px">
                 ${excelSigned?.signedUrl ? `<a href="${excelSigned.signedUrl}" style="display:inline-block;background:#1e3a5f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-left:8px">⬇ تحميل Excel</a>` : ''}
                 ${pdfSigned?.signedUrl ? `<a href="${pdfSigned.signedUrl}" style="display:inline-block;background:#f1f5f9;color:#1e293b;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">⬇ تحميل PDF</a>` : ''}
-              </div>
-              <p style="color:#94a3b8;font-size:12px">روابط التحميل صالحة لمدة 7 أيام.</p>
+              </div>` : ''}
             </div>
           </div>
         `,
       })
-      emailStatus = error ? { sent: false, error: error.message } : { sent: true }
+      emailStatus = { sent: true }
     } catch (e: any) {
       emailStatus = { sent: false, error: e?.message ?? 'فشل إرسال الإيميل' }
     }
