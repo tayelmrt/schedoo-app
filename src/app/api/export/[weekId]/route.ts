@@ -114,7 +114,7 @@ export async function POST(
     }
   }
 
-  const excelBuffer = await wb.xlsx.writeBuffer() as Buffer
+  const excelBuffer = Buffer.from(await wb.xlsx.writeBuffer())
 
   // ── 3. Build PDF ────────────────────────────────────────────────────────
   const doc  = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
