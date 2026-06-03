@@ -34,6 +34,7 @@ export interface Requirement {
   day_of_week: number
   shift_id: string
   min_agents_required: number
+  max_agents: number | null
   shift?: Shift
 }
 

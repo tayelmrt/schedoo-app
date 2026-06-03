@@ -15,6 +15,7 @@ export default function TeamSchedulePage({ params }: { params: { teamToken: stri
   const [shifts, setShifts]     = useState<Shift[]>([])
   const [openWeeks, setOpenWeeks] = useState<Week[]>([])
   const [allEntries, setAllEntries] = useState<any[]>([])
+  const [requirements, setRequirements] = useState<any[]>([])
 
   const [selectedAgent, setSelectedAgent] = useState<AgentLite | null>(null)
   const [activeWeekIdx, setActiveWeekIdx]  = useState(0)
@@ -37,6 +38,7 @@ export default function TeamSchedulePage({ params }: { params: { teamToken: stri
       setShifts(data.shifts ?? [])
       setOpenWeeks(data.openWeeks ?? [])
       setAllEntries(data.entries ?? [])
+      setRequirements(data.requirements ?? [])
       setLoading(false)
     }
     load()
@@ -55,6 +57,21 @@ export default function TeamSchedulePage({ params }: { params: { teamToken: stri
     setSelection(days)
     setSubmitted(false)
   }, [selectedAgent, activeWeekIdx, activeWeek?.id])
+
+  // Capacity check: returns { full, count, max } for a (day, shift) on the active week,
+  // excluding the current agent's own slot.
+  function capacity(day: number, shiftId: string) {
+    const req = requirements.find(r => r.day_of_week === day && r.shift_id === shiftId)
+    const max = req?.max_agents ?? null
+    if (max == null || !activeWeek) return { full: false, count: 0, max: null as number | null }
+    const count = allEntries.filter(
+      e => e.week_id === activeWeek.id &&
+           e.day_of_week === day &&
+           e.shift_id === shiftId &&
+           e.agent_id !== selectedAgent?.id
+    ).length
+    return { full: count >= max, count, max }
+  }
 
   function weekLabel(weekStart: string) {
     const m = parseISO(weekStart)
@@ -237,19 +254,28 @@ export default function TeamSchedulePage({ params }: { params: { teamToken: stri
               <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {shifts.map(s => {
                   const isSel = selected === s.id
+                  const cap   = capacity(dayNum, s.id)
+                  const locked = cap.full && !isSel   // can't pick a full shift unless already on it
                   return (
                     <button key={s.id}
-                      onClick={() => setSelection(prev => ({ ...prev, [dayNum]: s.id }))}
-                      className={`rounded-xl p-3 text-center text-sm font-semibold border-2 transition-all ${
-                        isSel ? 'shadow-md scale-105' : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100'
+                      disabled={locked}
+                      onClick={() => !locked && setSelection(prev => ({ ...prev, [dayNum]: s.id }))}
+                      className={`relative rounded-xl p-3 text-center text-sm font-semibold border-2 transition-all ${
+                        isSel ? 'shadow-md scale-105'
+                        : locked ? 'border-transparent bg-slate-100 text-slate-300 cursor-not-allowed'
+                        : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100'
                       }`}
                       style={isSel ? { background: s.color_code + '22', borderColor: s.color_code, color: s.color_code } : {}}>
                       <div>{s.name}</div>
-                      {!s.is_off && s.start_time && (
+                      {locked ? (
+                        <div className="text-[10px] font-bold text-red-400 mt-0.5">🔒 ممتلئ {cap.count}/{cap.max}</div>
+                      ) : cap.max != null ? (
+                        <div className="text-[10px] opacity-60 font-normal mt-0.5">{cap.count}/{cap.max}</div>
+                      ) : (!s.is_off && s.start_time) ? (
                         <div className="text-[10px] opacity-70 font-normal mt-0.5">
                           {s.start_time.slice(0,5)} – {s.end_time?.slice(0,5)}
                         </div>
-                      )}
+                      ) : null}
                     </button>
                   )
                 })}

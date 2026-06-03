@@ -7,7 +7,7 @@ import { Save }                from 'lucide-react'
 import type { Shift }          from '@/lib/types'
 import { DAYS }                from '@/lib/types'
 
-type MatrixCell = { value: number; reqId?: string }
+type MatrixCell = { min: number; max: number | null; reqId?: string }
 // matrix[shiftId][day] = MatrixCell
 type Matrix = Record<string, Record<number, MatrixCell>>
 
@@ -28,13 +28,16 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
       const shiftsData = sh ?? []
       setShifts(shiftsData)
 
-      // Build matrix
       const m: Matrix = {}
       shiftsData.forEach(s => {
         m[s.id] = {}
         for (let d = 1; d <= 7; d++) {
           const existing = (req ?? []).find(r => r.shift_id === s.id && r.day_of_week === d)
-          m[s.id][d] = { value: existing?.min_agents_required ?? 0, reqId: existing?.id }
+          m[s.id][d] = {
+            min: existing?.min_agents_required ?? 0,
+            max: existing?.max_agents ?? null,
+            reqId: existing?.id,
+          }
         }
       })
       setMatrix(m)
@@ -43,10 +46,18 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
     load()
   }, [])
 
-  function updateCell(shiftId: string, day: number, value: number) {
+  function updateMin(shiftId: string, day: number, min: number) {
     setMatrix(prev => ({
       ...prev,
-      [shiftId]: { ...prev[shiftId], [day]: { ...prev[shiftId][day], value } }
+      [shiftId]: { ...prev[shiftId], [day]: { ...prev[shiftId][day], min } }
+    }))
+    setSaved(false)
+  }
+  function updateMax(shiftId: string, day: number, raw: string) {
+    const max = raw === '' ? null : (parseInt(raw) || 0)
+    setMatrix(prev => ({
+      ...prev,
+      [shiftId]: { ...prev[shiftId], [day]: { ...prev[shiftId][day], max } }
     }))
     setSaved(false)
   }
@@ -62,7 +73,8 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
           team_id: params.teamId,
           shift_id: s.id,
           day_of_week: d,
-          min_agents_required: cell.value,
+          min_agents_required: cell.min,
+          max_agents: cell.max,
           ...(cell.reqId ? { id: cell.reqId } : {}),
         })
       }
@@ -83,7 +95,9 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Requirements Matrix</h1>
-          <p className="text-slate-500 text-sm mt-1">Set minimum agents required per shift per day</p>
+          <p className="text-slate-500 text-sm mt-1">
+            الحد الأدنى (Min) والحد الأقصى (Max) لكل شيفت في كل يوم — اترك Max فاضي لو بدون حد
+          </p>
         </div>
         <button onClick={saveAll} disabled={saving} className="btn btn-primary">
           <Save className="w-4 h-4" />
@@ -102,7 +116,10 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
               <tr className="border-b border-slate-100">
                 <th className="text-left p-4 text-slate-500 font-medium w-40">Shift</th>
                 {Object.entries(DAYS).map(([d, name]) => (
-                  <th key={d} className="p-4 text-slate-500 font-medium text-center">{name.slice(0,3)}</th>
+                  <th key={d} className="p-3 text-slate-500 font-medium text-center">
+                    {name.slice(0,3)}
+                    <div className="text-[10px] text-slate-300 font-normal">Min / Max</div>
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -117,12 +134,24 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
                   </td>
                   {[1,2,3,4,5,6,7].map(d => (
                     <td key={d} className="p-2 text-center">
-                      <input
-                        type="number" min={0} max={99}
-                        className="w-14 text-center input py-1.5"
-                        value={matrix[s.id]?.[d]?.value ?? 0}
-                        onChange={e => updateCell(s.id, d, parseInt(e.target.value) || 0)}
-                      />
+                      <div className="flex items-center justify-center gap-1">
+                        <input
+                          type="number" min={0} max={99}
+                          title="الحد الأدنى"
+                          className="w-12 text-center input py-1.5"
+                          value={matrix[s.id]?.[d]?.min ?? 0}
+                          onChange={e => updateMin(s.id, d, parseInt(e.target.value) || 0)}
+                        />
+                        <span className="text-slate-300">/</span>
+                        <input
+                          type="number" min={0} max={99}
+                          title="الحد الأقصى (فاضي = بدون حد)"
+                          placeholder="∞"
+                          className="w-12 text-center input py-1.5"
+                          value={matrix[s.id]?.[d]?.max ?? ''}
+                          onChange={e => updateMax(s.id, d, e.target.value)}
+                        />
+                      </div>
                     </td>
                   ))}
                 </tr>

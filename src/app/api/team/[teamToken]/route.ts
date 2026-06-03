@@ -34,6 +34,12 @@ export async function GET(
     .eq('team_id', team.id)
     .order('sort_order')
 
+  // 3b. Requirements (for max capacity limits)
+  const { data: requirements } = await supabase
+    .from('requirements')
+    .select('day_of_week, shift_id, min_agents_required, max_agents')
+    .eq('team_id', team.id)
+
   // 4. Open weeks
   const { data: openWeeks } = await supabase
     .from('weeks')
@@ -43,7 +49,10 @@ export async function GET(
     .order('week_start_date', { ascending: true })
 
   if (!openWeeks || openWeeks.length === 0) {
-    return NextResponse.json({ team, agents: agents ?? [], shifts: shifts ?? [], openWeeks: [] })
+    return NextResponse.json({
+      team, agents: agents ?? [], shifts: shifts ?? [],
+      requirements: requirements ?? [], openWeeks: [],
+    })
   }
 
   // 5. All entries for those weeks (so each agent sees their own pre-filled)
@@ -55,10 +64,11 @@ export async function GET(
 
   return NextResponse.json({
     team,
-    agents:    agents ?? [],
-    shifts:    shifts ?? [],
+    agents:       agents ?? [],
+    shifts:       shifts ?? [],
+    requirements: requirements ?? [],
     openWeeks,
-    entries:   entries ?? [],
+    entries:      entries ?? [],
   })
 }
 
@@ -89,6 +99,40 @@ export async function POST(
     return NextResponse.json({ error: 'أسبوع غير صحيح' }, { status: 400 })
   if (week.status === 'confirmed')
     return NextResponse.json({ error: 'تم تأكيد الجدول ولا يمكن التعديل' }, { status: 400 })
+
+  // ── Enforce max capacity per (day, shift) ──────────────────────────────────
+  const { data: reqs } = await supabase
+    .from('requirements')
+    .select('day_of_week, shift_id, max_agents')
+    .eq('team_id', team.id)
+    .not('max_agents', 'is', null)
+
+  if (reqs && reqs.length > 0) {
+    // Current entries for this week from OTHER agents
+    const { data: others } = await supabase
+      .from('schedule_entries')
+      .select('day_of_week, shift_id, agent_id')
+      .eq('week_id', weekId)
+      .neq('agent_id', agentId)
+
+    const full: string[] = []
+    for (const [day, shiftId] of Object.entries(selection)) {
+      if (!shiftId) continue
+      const req = reqs.find(r => r.day_of_week === parseInt(day) && r.shift_id === shiftId)
+      if (!req || req.max_agents == null) continue
+      const taken = (others ?? []).filter(
+        e => e.day_of_week === parseInt(day) && e.shift_id === shiftId
+      ).length
+      if (taken >= req.max_agents) full.push(day)
+    }
+
+    if (full.length > 0) {
+      return NextResponse.json(
+        { error: 'بعض الشيفتات امتلأت أثناء التسجيل. حدّث الصفحة واختر شيفت آخر.' },
+        { status: 409 }
+      )
+    }
+  }
 
   // Upsert all 7 days
   const upserts = Object.entries(selection).map(([day, shiftId]) => ({
