@@ -32,10 +32,11 @@ export async function GET() {
   if (agent.status !== 'approved')
     return NextResponse.json({ error: 'pending', agent: { name: agent.name } }, { status: 403 })
 
-  const [{ data: shifts }, { data: requirements }, { data: openWeeks }] = await Promise.all([
+  const [{ data: shifts }, { data: requirements }, { data: openWeeks }, { data: teamAgents }] = await Promise.all([
     svc.from('shifts').select('*').eq('team_id', agent.team_id).order('sort_order'),
     svc.from('requirements').select('day_of_week, shift_id, min_agents_required, max_agents').eq('team_id', agent.team_id),
     svc.from('weeks').select('*').eq('team_id', agent.team_id).eq('status', 'open').order('week_start_date'),
+    svc.from('agents').select('id, name').eq('team_id', agent.team_id).eq('is_active', true).order('name'),
   ])
 
   let entries: any[] = []
@@ -52,6 +53,7 @@ export async function GET() {
   return NextResponse.json({
     agent: { id: agent.id, name: agent.name },
     team,
+    teamAgents: teamAgents ?? [],
     shifts: shifts ?? [],
     requirements: requirements ?? [],
     openWeeks: openWeeks ?? [],
