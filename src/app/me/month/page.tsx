@@ -75,7 +75,7 @@ export default function AgentMonth() {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
 
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
-  const leadBlanks = (parseISO(format(monthStart,'yyyy-MM-dd')).getDay() + 6) % 7
+  const leadBlanks = parseISO(format(monthStart,'yyyy-MM-dd')).getDay() // Sunday-first
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100">
@@ -114,7 +114,7 @@ export default function AgentMonth() {
         {/* Calendar */}
         <div className="bg-white rounded-2xl border border-slate-200 p-3 mb-4">
           <div className="grid grid-cols-7 gap-1.5">
-            {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d =>
+            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d =>
               <div key={d} className="text-center text-[10px] font-bold text-slate-400">{d}</div>)}
             {Array.from({ length: leadBlanks }).map((_, i) => <div key={'b'+i} />)}
             {days.map(d => {

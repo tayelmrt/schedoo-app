@@ -78,18 +78,19 @@ export interface ScheduleEntry {
 // UI helpers
 // ============================================================
 
+// Week starts on Sunday (Egypt convention): 1=Sunday … 7=Saturday
 export const DAYS: Record<number, string> = {
-  1: 'Monday',
-  2: 'Tuesday',
-  3: 'Wednesday',
-  4: 'Thursday',
-  5: 'Friday',
-  6: 'Saturday',
-  7: 'Sunday',
+  1: 'Sunday',
+  2: 'Monday',
+  3: 'Tuesday',
+  4: 'Wednesday',
+  5: 'Thursday',
+  6: 'Friday',
+  7: 'Saturday',
 }
 
 export const DAY_SHORTS: Record<number, string> = {
-  1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun',
+  1: 'Sun', 2: 'Mon', 3: 'Tue', 4: 'Wed', 5: 'Thu', 6: 'Fri', 7: 'Sat',
 }
 
 /** Validation result for a single (day, shift) cell */

@@ -6,14 +6,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Returns the Monday of the week containing `date` */
+/** Returns the Sunday (week start) of the week containing `date` */
 export function getWeekMonday(date: Date = new Date()): Date {
-  return startOfWeek(date, { weekStartsOn: 1 })
+  return startOfWeek(date, { weekStartsOn: 0 }) // 0 = Sunday
 }
 
-/** Returns an array of 7 Dates [Mon…Sun] for the week starting at `monday` */
-export function getWeekDays(monday: Date): Date[] {
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+/** Returns an array of 7 Dates [Sun…Sat] for the week starting at `start` */
+export function getWeekDays(start: Date): Date[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i))
 }
 
 /** Format a Date to 'YYYY-MM-DD' */

@@ -61,12 +61,12 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
     if (workers[holiday.id]) return // already loaded
 
     // Find all schedule_entries on this date that are NOT off
-    // date → day_of_week + week_start_date
+    // date → day_of_week + week_start_date (week starts Sunday: 1=Sun…7=Sat)
     const d     = parseISO(holiday.date)
-    const day   = d.getDay() === 0 ? 7 : d.getDay() // 1=Mon…7=Sun
-    const monday = new Date(d)
-    monday.setDate(d.getDate() - (day - 1))
-    const weekStr = format(monday, 'yyyy-MM-dd')
+    const day   = d.getDay() + 1            // getDay 0=Sun → 1, … 6=Sat → 7
+    const weekStartDate = new Date(d)
+    weekStartDate.setDate(d.getDate() - d.getDay()) // back to Sunday
+    const weekStr = format(weekStartDate, 'yyyy-MM-dd')
 
     // Get week for this team
     const { data: week } = await supabase.from('weeks')

@@ -148,11 +148,11 @@ export default function ReportsPage({ params }: { params: { teamId: string } }) 
       <div className="bg-slate-50 border-t border-slate-100 p-4">
         {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-1.5 mb-4">
-          {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
+          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
             <div key={d} className="text-center text-[10px] font-bold text-slate-400 uppercase">{d}</div>
           ))}
-          {/* leading blanks */}
-          {Array.from({ length: (parseISO(format(monthStart,'yyyy-MM-dd')).getDay() + 6) % 7 }).map((_, i) => (
+          {/* leading blanks (Sunday-first) */}
+          {Array.from({ length: parseISO(format(monthStart,'yyyy-MM-dd')).getDay() }).map((_, i) => (
             <div key={'b'+i} />
           ))}
           {days.map(d => {
