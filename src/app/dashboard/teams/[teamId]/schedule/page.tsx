@@ -92,6 +92,55 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
     return shifts.find(s => s.id === shiftId)
   }
 
+  // ── Compliance & rest checks ───────────────────────────────────────────────
+  const MAX_CONSECUTIVE = 6   // flag if working this many days in a row
+  const REST_MIN_HOURS  = 8   // flag if rest between two shifts is below this
+
+  function hoursOf(t: string | null): number | null {
+    if (!t) return null
+    const [h, m] = t.split(':').map(Number)
+    return h + (m || 0) / 60
+  }
+  /** A "working" day = a real shift with start & end times (not OFF/Vacation/Annual) */
+  function workShiftOnDay(agentId: string, day: number): Shift | null {
+    const sh = getShift(getEntry(agentId, day)?.shift_id ?? null)
+    if (!sh || sh.is_off || !sh.start_time || !sh.end_time) return null
+    return sh
+  }
+
+  function complianceIssues(): { name: string; issues: string[] }[] {
+    const out: { name: string; issues: string[] }[] = []
+    agents.forEach(a => {
+      const issues: string[] = []
+      // build per-day working flags + shift
+      const work: (Shift | null)[] = [1,2,3,4,5,6,7].map(d => workShiftOnDay(a.id, d))
+
+      // consecutive working days (within the week)
+      let run = 0, maxRun = 0
+      work.forEach(w => { if (w) { run++; maxRun = Math.max(maxRun, run) } else run = 0 })
+      if (maxRun >= MAX_CONSECUTIVE) issues.push(`${maxRun} أيام متتالية بدون راحة`)
+
+      // no rest day at all this week
+      if (work.every(w => w)) issues.push('مفيش يوم راحة طول الأسبوع')
+
+      // insufficient rest between consecutive shifts
+      for (let i = 0; i < 6; i++) {
+        const a1 = work[i], a2 = work[i+1]
+        if (!a1 || !a2) continue
+        const s1 = hoursOf(a1.start_time)!, e1raw = hoursOf(a1.end_time)!
+        const s2 = hoursOf(a2.start_time)!
+        const end1 = i*24 + (e1raw <= s1 ? e1raw + 24 : e1raw)
+        const start2 = (i+1)*24 + s2
+        const rest = start2 - end1
+        if (rest < REST_MIN_HOURS)
+          issues.push(`راحة قليلة (${rest.toFixed(0)} س) بين ${DAY_SHORTS[i+1]} و${DAY_SHORTS[i+2]}`)
+      }
+
+      if (issues.length) out.push({ name: a.name, issues })
+    })
+    return out
+  }
+
   /** Summary per shift per day for the validation row */
   function getDaySummaries(day: number): DayShiftSummary[] {
     return shifts.map(s => {
@@ -391,6 +440,39 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
           </table>
         </div>
       )}
+
+      {/* Compliance & rest warnings */}
+      {agents.length > 0 && (() => {
+        const issues = complianceIssues()
+        return (
+          <div className="card mt-5">
+            <div className="card-body">
+              <h2 className="font-semibold text-slate-700 mb-1 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500" /> تنبيهات الامتثال والراحة
+              </h2>
+              <p className="text-xs text-slate-400 mb-3">
+                فحص تلقائي: أيام متتالية كتير · مفيش يوم راحة · راحة قليلة بين الشيفتات (أقل من {REST_MIN_HOURS} ساعات)
+              </p>
+              {issues.length === 0 ? (
+                <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-4 py-3">
+                  ✓ مفيش أي مخالفات في جدول الأسبوع ده — كله سليم
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {issues.map(({ name, issues: list }) => (
+                    <div key={name} className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
+                      <div className="font-semibold text-sm text-amber-900 mb-1">{name}</div>
+                      <ul className="text-xs text-amber-700 space-y-0.5">
+                        {list.map((it, i) => <li key={i} className="flex items-center gap-1.5"><span className="text-amber-400">●</span> {it}</li>)}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Shift legend */}
       {shifts.length > 0 && (
