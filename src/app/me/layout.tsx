@@ -5,7 +5,7 @@ import Link                    from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient }        from '@/lib/supabase/client'
 import {
-  CalendarCheck, CalendarDays, LogOut, Menu, X, Loader2, Clock, AlertCircle,
+  CalendarCheck, CalendarDays, Plane, LogOut, Menu, X, Loader2, Clock, AlertCircle,
 } from 'lucide-react'
 
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
@@ -39,6 +39,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   const nav = [
     { href: '/me',       label: 'تسجيل الجدول', icon: CalendarCheck },
     { href: '/me/month', label: 'جدولي الشهري',  icon: CalendarDays },
+    { href: '/me/leave', label: 'إجازاتي',       icon: Plane },
   ]
 
   if (view === 'loading')

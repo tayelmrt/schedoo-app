@@ -1,15 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { Settings2, Users, Calendar, BarChart2, ChevronRight, Settings, Umbrella, LineChart } from 'lucide-react'
+import { Settings2, Users, Calendar, BarChart2, ChevronRight, Settings, Umbrella, LineChart, Plane } from 'lucide-react'
 
 const sections = [
   { href: 'shifts',       icon: Settings2, label: 'Shifts',         desc: 'Define shift types, times, and colors' },
   { href: 'requirements', icon: BarChart2, label: 'Requirements',    desc: 'Min & Max agents per shift per day' },
-  { href: 'agents',       icon: Users,     label: 'Agents',          desc: 'Add agents and get share links' },
+  { href: 'agents',       icon: Users,     label: 'Agents',          desc: 'Add agents and approve accounts' },
   { href: 'schedule',     icon: Calendar,  label: 'Schedule',        desc: 'View matrix, validate, and export' },
-  { href: 'reports',      icon: LineChart, label: 'التقارير',          desc: 'إحصائيات الشيفتات الشهرية لكل أجينت' },
-  { href: 'holidays',     icon: Umbrella,  label: 'الإجازات والتعويضات', desc: 'إجازات رسمية وتتبّع أيام التعويض' },
+  { href: 'reports',      icon: LineChart, label: 'التقارير',          desc: 'إحصائيات وعبء الشيفتات الشهري' },
+  { href: 'leaves',       icon: Plane,     label: 'الإجازات والأرصدة',  desc: 'أرصدة الموظفين وطلبات الإجازة' },
+  { href: 'holidays',     icon: Umbrella,  label: 'الإجازات الرسمية',   desc: 'إجازات رسمية وتتبّع أيام التعويض' },
   { href: 'settings',     icon: Settings,  label: 'Settings',        desc: 'Admins, managers, and team config' },
 ]
 
