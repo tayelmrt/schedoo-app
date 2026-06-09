@@ -160,6 +160,26 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
     setTimeout(() => setToast(''), 3000)
   }
 
+  // ── Admin assigns / changes / clears a shift for any agent ─────────────────
+  async function assignShift(agentId: string, day: number, shiftId: string) {
+    if (!week) return
+    if (shiftId === '') {
+      // clear
+      await supabase.from('schedule_entries').delete()
+        .eq('week_id', week.id).eq('agent_id', agentId).eq('day_of_week', day)
+      setEntries(prev => prev.filter(e => !(e.agent_id === agentId && e.week_id === week.id && e.day_of_week === day)))
+    } else {
+      await supabase.from('schedule_entries').upsert({
+        week_id: week.id, agent_id: agentId, day_of_week: day,
+        shift_id: shiftId, status: 'submitted', submitted_at: new Date().toISOString(),
+      }, { onConflict: 'week_id,agent_id,day_of_week' })
+      setEntries(prev => {
+        const others = prev.filter(e => !(e.agent_id === agentId && e.week_id === week.id && e.day_of_week === day))
+        return [...others, { id: crypto.randomUUID(), week_id: week.id, agent_id: agentId, day_of_week: day, shift_id: shiftId, status: 'submitted', submitted_at: new Date().toISOString() } as any]
+      })
+    }
+  }
+
   // ── Confirm week ──────────────────────────────────────────────────────────
   async function confirmWeek() {
     if (!week) return
@@ -331,6 +351,13 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
         </div>
       </div>
 
+      {/* Edit hint */}
+      {agents.length > 0 && week?.status !== 'confirmed' && (
+        <p className="text-xs text-slate-400 mb-2">
+          💡 تقدر تعيّن أو تغيّر شيفت أي موظف مباشرة من الجدول — اضغط على أي خانة واختار الشيفت (لسد العجز أو لمن لم يسجّل).
+        </p>
+      )}
+
       {/* Matrix */}
       {agents.length === 0 ? (
         <div className="card card-body text-center text-slate-400 py-16">
@@ -366,28 +393,36 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                   {[1,2,3,4,5,6,7].map(day => {
                     const entry = getEntry(agent.id, day)
                     const shift = getShift(entry?.shift_id ?? null)
+                    const editable = week?.status !== 'confirmed'
+
+                    // Read-only (confirmed) view
+                    if (!editable) {
+                      return (
+                        <td key={day} className="p-1.5 text-center">
+                          {shift ? (
+                            <div className="rounded-lg px-2 py-1.5 text-xs font-semibold leading-tight"
+                              style={{ background: hexToAlpha(shift.color_code,0.2), color: shift.color_code, border:`1px solid ${hexToAlpha(shift.color_code,0.4)}` }}>
+                              {shift.name}
+                            </div>
+                          ) : <div className="rounded-lg px-2 py-1.5 text-xs text-slate-300 bg-slate-50 border border-slate-100">—</div>}
+                        </td>
+                      )
+                    }
+
+                    // Editable: admin can assign / change / clear
                     return (
-                      <td key={day} className="p-1.5 text-center">
-                        {shift ? (
-                          <div
-                            className="rounded-lg px-2 py-1.5 text-xs font-semibold leading-tight"
-                            style={{
-                              background:  hexToAlpha(shift.color_code, 0.2),
-                              color:       shift.color_code,
-                              border:      `1px solid ${hexToAlpha(shift.color_code, 0.4)}`,
-                            }}>
-                            {shift.name}
-                            {!shift.is_off && shift.start_time && (
-                              <div className="text-[10px] opacity-70 font-normal">
-                                {shift.start_time.slice(0,5)}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="rounded-lg px-2 py-1.5 text-xs text-slate-300 bg-slate-50 border border-slate-100">
-                            {entry?.status === 'submitted' ? '—' : 'Not submitted'}
-                          </div>
-                        )}
+                      <td key={day} className="p-1 text-center">
+                        <select
+                          value={entry?.shift_id ?? ''}
+                          onChange={e => assignShift(agent.id, day, e.target.value)}
+                          title="عيّن أو غيّر الشيفت"
+                          className="w-full rounded-lg px-1.5 py-1.5 text-xs font-semibold cursor-pointer border outline-none appearance-none text-center"
+                          style={shift
+                            ? { background: hexToAlpha(shift.color_code,0.2), color: shift.color_code, borderColor: hexToAlpha(shift.color_code,0.4) }
+                            : { background: '#f8fafc', color: '#cbd5e1', borderColor: '#e2e8f0' }}>
+                          <option value="">— غير مسجّل —</option>
+                          {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
                       </td>
                     )
                   })}
