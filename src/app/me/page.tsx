@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter }           from 'next/navigation'
-import Link                    from 'next/link'
 import { createClient }        from '@/lib/supabase/client'
 import { format, addDays, parseISO } from 'date-fns'
 import {
-  CheckCircle2, Loader2, Clock, AlertCircle, LogOut, CalendarDays, AlertTriangle,
+  CheckCircle2, Loader2, AlertTriangle,
 } from 'lucide-react'
 import { hexToAlpha } from '@/lib/utils'
 import type { Shift, Week } from '@/lib/types'
@@ -133,61 +132,19 @@ export default function AgentHome() {
     setSubmitting(false)
   }
 
-  async function signOut() { await supabase.auth.signOut(); router.replace('/auth/login') }
-
-  // ── States ──────────────────────────────────────────────────────────────────
-  if (stateView === 'loading')
+  // ── States (pending / no-agent are handled by the agent layout) ────────────
+  if (stateView !== 'ready')
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
-
-  if (stateView === 'pending')
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-md text-center">
-          <Clock className="w-14 h-14 text-amber-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-slate-800 mb-2">في انتظار موافقة الأدمين</h1>
-          <p className="text-slate-500 text-sm">أهلاً {agentName || ''} — حسابك اتسجّل بنجاح. لسه محتاج الأدمين يوافق على دخولك.</p>
-          <button onClick={signOut} className="btn btn-ghost mt-6 mx-auto"><LogOut className="w-4 h-4" /> خروج</button>
-        </div>
-      </div>
-    )
-
-  if (stateView === 'no-agent')
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-md text-center">
-          <AlertCircle className="w-14 h-14 text-red-300 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-slate-800 mb-2">مفيش صلاحية دخول</h1>
-          <p className="text-slate-500 text-sm">الإيميل ده لسه مش مضاف لأي فريق. تواصل مع الأدمين.</p>
-          <button onClick={signOut} className="btn btn-ghost mt-6 mx-auto"><LogOut className="w-4 h-4" /> خروج</button>
-        </div>
-      </div>
-    )
 
   // ── Ready ─────────────────────────────────────────────────────────────────
   const weekDays = activeWeek ? Array.from({ length: 7 }, (_, i) => addDays(parseISO(activeWeek.week_start_date), i)) : []
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 pb-10">
+    <div className="pb-10">
       {toast && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-sm px-5 py-3 rounded-xl shadow-lg">{toast}</div>}
 
-      {/* Top bar */}
-      <div className="bg-white border-b border-slate-200 px-4 py-4 shadow-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
-              {agentName.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}
-            </div>
-            <div><div className="font-bold text-slate-800 text-sm">{agentName}</div>
-              <div className="text-xs text-slate-400">{teamName}</div></div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/me/month" className="btn btn-ghost btn-sm"><CalendarDays className="w-4 h-4" /> جدولي الشهري</Link>
-            <button onClick={signOut} className="text-slate-400 hover:text-red-500"><LogOut className="w-4 h-4" /></button>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-5xl mx-auto p-4 pt-5">
+        <h1 className="text-xl font-bold text-slate-800 mb-4">تسجيل الجدول</h1>
         {openWeeks.length === 0 ? (
           <div className="text-center py-16"><div className="text-5xl mb-3">📅</div><p className="text-slate-500">مفيش أسبوع مفتوح للتسجيل دلوقتي.</p></div>
         ) : (

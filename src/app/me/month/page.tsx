@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter }           from 'next/navigation'
-import Link                    from 'next/link'
 import {
   format, addDays, parseISO, startOfMonth, endOfMonth,
   isWithinInterval, eachDayOfInterval,
 } from 'date-fns'
 import {
-  ChevronLeft, ChevronRight, Loader2, ArrowRight, Gift, Briefcase, Umbrella,
+  ChevronLeft, ChevronRight, Loader2, Gift, Briefcase, Umbrella,
 } from 'lucide-react'
 import { hexToAlpha } from '@/lib/utils'
 import type { Shift } from '@/lib/types'
@@ -78,16 +77,9 @@ export default function AgentMonth() {
   const leadBlanks = parseISO(format(monthStart,'yyyy-MM-dd')).getDay() // Sunday-first
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100">
-      <div className="bg-white border-b border-slate-200 px-4 py-4 shadow-sm sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <Link href="/me" className="text-sm text-blue-600 flex items-center gap-1"><ArrowRight className="w-4 h-4" /> رجوع</Link>
-          <div className="font-bold text-slate-800 text-sm">جدولي الشهري — {name}</div>
-          <div className="w-12" />
-        </div>
-      </div>
-
-      <div className="max-w-2xl mx-auto p-4">
+    <div>
+      <div className="max-w-2xl mx-auto p-4 pt-5">
+        <h1 className="text-xl font-bold text-slate-800 mb-4">جدولي الشهري — {name}</h1>
         {/* Month nav */}
         <div className="flex items-center justify-center gap-3 mb-4">
           <button onClick={() => setMonth(m => startOfMonth(addDays(m,-1)))} className="w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center"><ChevronLeft className="w-4 h-4" /></button>
