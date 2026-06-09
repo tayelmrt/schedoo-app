@@ -92,11 +92,14 @@ export default function ReportsPage({ params }: { params: { teamId: string } }) 
   const offShifts  = shifts.filter(s => s.is_off)
 
   /** per-agent aggregation */
+  // A shift counts as "night" if its name hints night (Night / ليل / نايت)
+  const isNightShift = (s: Shift | undefined) => !!s && /night|ليل|نايت/i.test(s.name)
+
   function agentStats(agentId: string) {
     const mine = monthEntries.filter(e => e.agent_id === agentId)
     const perShift: Record<string, number> = {}
     shifts.forEach(s => perShift[s.id] = 0)
-    let off = 0, work = 0, holidayWorked = 0
+    let off = 0, work = 0, holidayWorked = 0, weekendWorked = 0, nightWorked = 0
 
     mine.forEach(e => {
       if (!e.shift_id) return
@@ -107,17 +110,27 @@ export default function ReportsPage({ params }: { params: { teamId: string } }) 
         work++
         const d = entryDate(e)
         if (d && holidayDates.has(format(d, 'yyyy-MM-dd'))) holidayWorked++
+        // weekend = Friday (6) or Saturday (7) under Sunday-first numbering
+        if (e.day_of_week === 6 || e.day_of_week === 7) weekendWorked++
+        if (isNightShift(sh)) nightWorked++
       }
     })
 
     const myComps = comps.filter(c => c.agent_id === agentId)
     return {
-      perShift, off, work, holidayWorked,
+      perShift, off, work, holidayWorked, weekendWorked, nightWorked,
       compGranted: myComps.filter(c => c.granted).length,
       compUsed:    myComps.filter(c => c.used).length,
       comps:       myComps,
     }
   }
+
+  // Fairness: the maximum load values across the team (to highlight the most-burdened)
+  const loadMax = (() => {
+    let night = 0, weekend = 0, holiday = 0
+    agents.forEach(a => { const s = agentStats(a.id); night = Math.max(night, s.nightWorked); weekend = Math.max(weekend, s.weekendWorked); holiday = Math.max(holiday, s.holidayWorked) })
+    return { night, weekend, holiday }
+  })()
 
   // ── Totals ──────────────────────────────────────────────────────────────────
   const totalShiftsMonth = monthEntries.filter(e => { const s = shiftById(e.shift_id); return s && !s.is_off }).length
@@ -270,6 +283,8 @@ export default function ReportsPage({ params }: { params: { teamId: string } }) 
                   <th key={s.id} className="p-3 font-semibold text-center text-slate-400">{s.name}</th>
                 ))}
                 <th className="p-3 font-semibold text-center text-slate-700">إجمالي</th>
+                <th className="p-3 font-semibold text-center text-purple-600">ليالي 🌙</th>
+                <th className="p-3 font-semibold text-center text-orange-600">جُمَع/سبوت</th>
                 <th className="p-3 font-semibold text-center text-red-500">إجازات اشتغلها</th>
                 <th className="p-3 font-semibold text-center text-blue-600">التعويض</th>
                 <th className="p-3" />
@@ -303,9 +318,21 @@ export default function ReportsPage({ params }: { params: { teamId: string } }) 
                       <td className="p-3 text-center">
                         <span className="font-bold text-slate-900 bg-slate-100 rounded-full px-2.5 py-0.5">{st.work}</span>
                       </td>
+                      {/* Night load — highlight the most-burdened */}
+                      <td className="p-3 text-center">
+                        {st.nightWorked > 0
+                          ? <span className={`font-bold rounded-full px-2.5 py-0.5 ${st.nightWorked === loadMax.night && loadMax.night > 0 ? 'bg-purple-600 text-white' : 'text-purple-700 bg-purple-50'}`}>{st.nightWorked}</span>
+                          : <span className="text-slate-300">0</span>}
+                      </td>
+                      {/* Weekend load */}
+                      <td className="p-3 text-center">
+                        {st.weekendWorked > 0
+                          ? <span className={`font-bold rounded-full px-2.5 py-0.5 ${st.weekendWorked === loadMax.weekend && loadMax.weekend > 0 ? 'bg-orange-500 text-white' : 'text-orange-700 bg-orange-50'}`}>{st.weekendWorked}</span>
+                          : <span className="text-slate-300">0</span>}
+                      </td>
                       <td className="p-3 text-center">
                         {st.holidayWorked > 0
-                          ? <span className="font-bold text-red-600 bg-red-50 rounded-full px-2.5 py-0.5">{st.holidayWorked}</span>
+                          ? <span className={`font-bold rounded-full px-2.5 py-0.5 ${st.holidayWorked === loadMax.holiday && loadMax.holiday > 0 ? 'bg-red-500 text-white' : 'text-red-600 bg-red-50'}`}>{st.holidayWorked}</span>
                           : <span className="text-slate-300">0</span>}
                       </td>
                       <td className="p-3 text-center text-xs">
@@ -319,7 +346,7 @@ export default function ReportsPage({ params }: { params: { teamId: string } }) 
                     </tr>
                     {isOpen && (
                       <tr>
-                        <td colSpan={workShifts.length + offShifts.length + 4} className="p-0">
+                        <td colSpan={workShifts.length + offShifts.length + 6} className="p-0">
                           <AgentCalendar agentId={a.id} />
                         </td>
                       </tr>
@@ -338,7 +365,7 @@ export default function ReportsPage({ params }: { params: { teamId: string } }) 
                   <td key={s.id} className="p-3 text-center text-slate-400">{shiftColTotal(s.id)}</td>
                 ))}
                 <td className="p-3 text-center text-slate-900">{totalShiftsMonth}</td>
-                <td className="p-3" colSpan={3} />
+                <td className="p-3" colSpan={5} />
               </tr>
             </tfoot>
           </table>
