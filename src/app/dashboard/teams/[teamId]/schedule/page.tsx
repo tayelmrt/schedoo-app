@@ -14,18 +14,24 @@ import type {
   Agent, Shift, Week, ScheduleEntry, Requirement, DayShiftSummary
 } from '@/lib/types'
 import { DAY_SHORTS } from '@/lib/types'
+import { useApp }    from '@/lib/providers'
 
 // ─── Status badge ────────────────────────────────────────────────────────────
 function StatusBadge({ count, required }: { count: number; required: number }) {
+  const { t } = useApp()
   if (required === 0) return <span className="badge-none">—</span>
-  if (count === required) return <span className="badge-ok">✓ OK {count}/{required}</span>
-  if (count < required)  return <span className="badge-less">▼ LESS {count}/{required}</span>
-  return                        <span className="badge-more">▲ MORE {count}/{required}</span>
+  if (count === required) return <span className="badge-ok">{t('sched.ok')} {count}/{required}</span>
+  if (count < required)  return <span className="badge-less">{t('sched.less')} {count}/{required}</span>
+  return                        <span className="badge-more">{t('sched.more')} {count}/{required}</span>
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SchedulePage({ params }: { params: { teamId: string } }) {
   const supabase  = createClient()
+  const { t, theme } = useApp()
+  const emptyCellStyle = theme === 'dark'
+    ? { background: '#1e293b', color: '#64748b', borderColor: '#334155' }
+    : { background: '#f8fafc', color: '#cbd5e1', borderColor: '#e2e8f0' }
 
   const [weekDate, setWeekDate]   = useState<Date>(getWeekMonday(new Date()))
   const [week, setWeek]           = useState<Week | null>(null)
@@ -118,10 +124,10 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       // consecutive working days (within the week)
       let run = 0, maxRun = 0
       work.forEach(w => { if (w) { run++; maxRun = Math.max(maxRun, run) } else run = 0 })
-      if (maxRun >= MAX_CONSECUTIVE) issues.push(`${maxRun} أيام متتالية بدون راحة`)
+      if (maxRun >= MAX_CONSECUTIVE) issues.push(`${maxRun} ${t('sched.consecutiveDays')}`)
 
       // no rest day at all this week
-      if (work.every(w => w)) issues.push('مفيش يوم راحة طول الأسبوع')
+      if (work.every(w => w)) issues.push(t('sched.noRestDay'))
 
       // insufficient rest between consecutive shifts
       for (let i = 0; i < 6; i++) {
@@ -133,7 +139,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
         const start2 = (i+1)*24 + s2
         const rest = start2 - end1
         if (rest < REST_MIN_HOURS)
-          issues.push(`راحة قليلة (${rest.toFixed(0)} س) بين ${DAY_SHORTS[i+1]} و${DAY_SHORTS[i+2]}`)
+          issues.push(`${t('sched.shortRest')} (${rest.toFixed(0)} ${t('sched.hoursShort')}) ${t('sched.between')} ${t(`dayShort.${i}`)} ${t('sched.and')}${t(`dayShort.${i+1}`)}`)
       }
 
       if (issues.length) out.push({ name: a.name, issues })
@@ -183,10 +189,10 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   // ── Confirm week ──────────────────────────────────────────────────────────
   async function confirmWeek() {
     if (!week) return
-    if (!confirm('Lock this schedule? Agents will no longer be able to edit their submissions.')) return
+    if (!confirm(t('sched.confirmDialog'))) return
     setConfirming(true)
     await supabase.from('weeks').update({ status: 'confirmed', confirmed_at: new Date().toISOString() }).eq('id', week.id)
-    showToast('Schedule confirmed ✓')
+    showToast(t('sched.confirmedToast'))
     loadAll()
     setConfirming(false)
   }
@@ -201,15 +207,15 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       if (json.error) throw new Error(json.error)
 
       if (json.emailed) {
-        showToast(`تم الإرسال للمانجر ✉️ (${json.recipients?.length || 0})`)
+        showToast(`${t('sched.emailedToast')} (${json.recipients?.length || 0})`)
       } else if (json.email_error) {
-        showToast('اتعمل Export بس الإيميل لم يُرسل: ' + json.email_error)
+        showToast(t('sched.exportedNoEmail') + ' ' + json.email_error)
       } else {
-        showToast('تم إنشاء الملفات ✅')
+        showToast(t('sched.filesCreated'))
       }
       loadAll()
     } catch (err: any) {
-      showToast('فشل الـ Export: ' + err.message)
+      showToast(t('sched.exportFailed') + ' ' + err.message)
     }
     setExporting(false)
   }
@@ -237,7 +243,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
     }
 
     setOpeningNext(false)
-    showToast('تم فتح الأسبوع القادم للتسجيل ✅')
+    showToast(t('sched.nextOpened'))
     setWeekDate(nextMonday)
     setTimeout(() => loadAll(), 500)
   }
@@ -256,7 +262,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   if (loading) {
     return (
       <div className="p-8 flex items-center gap-2 text-slate-400">
-        <RefreshCw className="w-4 h-4 animate-spin" /> Loading schedule…
+        <RefreshCw className="w-4 h-4 animate-spin" /> {t('sched.loading')}
       </div>
     )
   }
@@ -265,24 +271,24 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
     <div className="p-6">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-6 right-6 z-50 bg-slate-900 text-white text-sm px-5 py-3 rounded-xl shadow-lg animate-bounce">
+        <div className="fixed top-6 end-6 z-50 bg-slate-900 text-white text-sm px-5 py-3 rounded-xl shadow-lg animate-bounce">
           {toast}
         </div>
       )}
 
       {/* Friday Warning Banner */}
       {showFridayWarning && (
-        <div className="mb-5 flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 rounded-xl px-5 py-4">
+        <div className="mb-5 flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-200 rounded-xl px-5 py-4">
           <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
           <div>
-            <div className="font-bold text-sm">⚠️ تحذير — اليوم الجمعة والجدول لم يُأكَّد بعد!</div>
-            <div className="text-xs text-red-600 mt-0.5">
-              يُنصح بتأكيد الجدول وإرساله للمانجر قبل نهاية اليوم.
+            <div className="font-bold text-sm">{t('sched.fridayTitle')}</div>
+            <div className="text-xs text-red-600 dark:text-red-300 mt-0.5">
+              {t('sched.fridayDesc')}
             </div>
           </div>
           <button onClick={confirmWeek} disabled={confirming}
-            className="mr-auto btn btn-danger btn-sm">
-            {confirming ? 'جاري التأكيد…' : '🔒 أكد الآن'}
+            className="ms-auto btn btn-danger btn-sm">
+            {confirming ? t('sched.confirming') : t('sched.confirmNow')}
           </button>
         </div>
       )}
@@ -291,21 +297,21 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <Link href={`/dashboard/teams/${params.teamId}`} className="text-sm text-slate-400 hover:text-blue-600 mb-1 inline-block">
-            ← Team
+            {t('common.backToTeam')}
           </Link>
-          <h1 className="text-2xl font-bold text-slate-900">Schedule Matrix</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('sched.title')}</h1>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Week navigator */}
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
-            <button onClick={prevWeek} className="text-slate-400 hover:text-slate-700">
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 shadow-sm">
+            <button onClick={prevWeek} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rtl:rotate-180">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-sm font-semibold text-slate-700 min-w-[140px] text-center">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 min-w-[140px] text-center">
               {format(weekDate, 'MMM d')} – {format(addDays(weekDate, 6), 'MMM d, yyyy')}
             </span>
-            <button onClick={nextWeek} className="text-slate-400 hover:text-slate-700">
+            <button onClick={nextWeek} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rtl:rotate-180">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -313,27 +319,27 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
           {/* Status badge */}
           <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
             week?.status === 'confirmed'
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-amber-100 text-amber-700'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
           }`}>
-            {week?.status === 'confirmed' ? '🔒 Confirmed' : '🟡 Open'}
+            {week?.status === 'confirmed' ? t('sched.confirmed') : t('sched.open')}
           </span>
 
           {week?.status !== 'confirmed' && (
             <button onClick={confirmWeek} disabled={confirming} className="btn btn-success btn-sm">
               <Lock className="w-3.5 h-3.5" />
-              {confirming ? 'جاري التأكيد…' : 'تأكيد الجدول'}
+              {confirming ? t('sched.confirming') : t('sched.confirm')}
             </button>
           )}
 
           <button onClick={openNextWeek} disabled={openingNext} className="btn btn-ghost btn-sm">
             <CalendarPlus className="w-3.5 h-3.5" />
-            {openingNext ? 'جاري الفتح…' : 'فتح الأسبوع القادم'}
+            {openingNext ? t('sched.opening') : t('sched.openNext')}
           </button>
 
           <button onClick={exportSchedule} disabled={exporting} className="btn btn-primary btn-sm">
             <Download className="w-3.5 h-3.5" />
-            {exporting ? 'Exporting…' : 'Export & Email'}
+            {exporting ? t('sched.exporting') : t('sched.exportEmail')}
           </button>
 
           {week?.export_url_excel && (
@@ -354,24 +360,24 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       {/* Edit hint */}
       {agents.length > 0 && week?.status !== 'confirmed' && (
         <p className="text-xs text-slate-400 mb-2">
-          💡 تقدر تعيّن أو تغيّر شيفت أي موظف مباشرة من الجدول — اضغط على أي خانة واختار الشيفت (لسد العجز أو لمن لم يسجّل).
+          {t('sched.editHint')}
         </p>
       )}
 
       {/* Matrix */}
       {agents.length === 0 ? (
         <div className="card card-body text-center text-slate-400 py-16">
-          No agents yet. <Link href={`/dashboard/teams/${params.teamId}/agents`} className="text-blue-600 underline">Add agents first</Link>
+          {t('sched.noAgents')} <Link href={`/dashboard/teams/${params.teamId}/agents`} className="text-blue-600 underline">{t('sched.addAgentsFirst')}</Link>
         </div>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b-2 border-slate-200">
-                <th className="text-left p-3 pl-5 font-semibold text-slate-600 w-40 bg-slate-50">Agent</th>
+              <tr className="border-b-2 border-slate-200 dark:border-slate-700">
+                <th className="text-start p-3 px-5 font-semibold text-slate-600 dark:text-slate-300 w-40 bg-slate-50 dark:bg-slate-800/50">{t('sched.colAgent')}</th>
                 {weekDays.map((d, i) => (
-                  <th key={i} className="p-3 text-center font-semibold text-slate-600 bg-slate-50 min-w-[110px]">
-                    <div>{DAY_SHORTS[i + 1]}</div>
+                  <th key={i} className="p-3 text-center font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 min-w-[110px]">
+                    <div>{t(`dayShort.${i}`)}</div>
                     <div className="text-xs text-slate-400 font-normal">{format(d, 'MMM d')}</div>
                   </th>
                 ))}
@@ -381,13 +387,13 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
             <tbody>
               {/* Agent rows */}
               {agents.map(agent => (
-                <tr key={agent.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                  <td className="p-3 pl-5">
+                <tr key={agent.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                  <td className="p-3 px-5">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 flex items-center justify-center text-xs font-bold flex-shrink-0">
                         {agent.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}
                       </div>
-                      <span className="font-medium text-slate-800 text-sm">{agent.name}</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-100 text-sm">{agent.name}</span>
                     </div>
                   </td>
                   {[1,2,3,4,5,6,7].map(day => {
@@ -404,7 +410,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                               style={{ background: hexToAlpha(shift.color_code,0.2), color: shift.color_code, border:`1px solid ${hexToAlpha(shift.color_code,0.4)}` }}>
                               {shift.name}
                             </div>
-                          ) : <div className="rounded-lg px-2 py-1.5 text-xs text-slate-300 bg-slate-50 border border-slate-100">—</div>}
+                          ) : <div className="rounded-lg px-2 py-1.5 text-xs text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">—</div>}
                         </td>
                       )
                     }
@@ -415,12 +421,12 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                         <select
                           value={entry?.shift_id ?? ''}
                           onChange={e => assignShift(agent.id, day, e.target.value)}
-                          title="عيّن أو غيّر الشيفت"
+                          title={t('sched.assignTitle')}
                           className="w-full rounded-lg px-1.5 py-1.5 text-xs font-semibold cursor-pointer border outline-none appearance-none text-center"
                           style={shift
                             ? { background: hexToAlpha(shift.color_code,0.2), color: shift.color_code, borderColor: hexToAlpha(shift.color_code,0.4) }
-                            : { background: '#f8fafc', color: '#cbd5e1', borderColor: '#e2e8f0' }}>
-                          <option value="">— غير مسجّل —</option>
+                            : emptyCellStyle}>
+                          <option value="">{t('sched.notRegistered')}</option>
                           {shifts.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                       </td>
@@ -430,9 +436,9 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
               ))}
 
               {/* Validation rows per shift */}
-              <tr className="border-t-2 border-slate-200 bg-slate-50">
-                <td className="p-3 pl-5">
-                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wide">Validation</div>
+              <tr className="border-t-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                <td className="p-3 px-5">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('sched.validation')}</div>
                 </td>
                 {[1,2,3,4,5,6,7].map(day => {
                   const summaries = getDaySummaries(day)
@@ -443,7 +449,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                           .filter(s => s.required > 0 || s.count > 0)
                           .map(s => (
                             <div key={s.shift_id} className="text-center">
-                              <div className="text-[10px] text-slate-400 mb-0.5">{s.shift_name}</div>
+                              <div className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">{s.shift_name}</div>
                               <StatusBadge count={s.count} required={s.required} />
                             </div>
                           ))
@@ -455,8 +461,8 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
               </tr>
 
               {/* Submission count row */}
-              <tr className="bg-slate-50 border-t border-slate-100">
-                <td className="p-3 pl-5 text-xs font-medium text-slate-400">Submissions</td>
+              <tr className="bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
+                <td className="p-3 px-5 text-xs font-medium text-slate-400">{t('sched.submissions')}</td>
                 {[1,2,3,4,5,6,7].map(day => {
                   const submitted = entries.filter(e => e.day_of_week === day && e.status === 'submitted').length
                   const total     = agents.length
@@ -482,22 +488,22 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
         return (
           <div className="card mt-5">
             <div className="card-body">
-              <h2 className="font-semibold text-slate-700 mb-1 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" /> تنبيهات الامتثال والراحة
+              <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500" /> {t('sched.complianceTitle')}
               </h2>
               <p className="text-xs text-slate-400 mb-3">
-                فحص تلقائي: أيام متتالية كتير · مفيش يوم راحة · راحة قليلة بين الشيفتات (أقل من {REST_MIN_HOURS} ساعات)
+                {t('sched.complianceDescPre')} {REST_MIN_HOURS} {t('sched.complianceDescPost')}
               </p>
               {issues.length === 0 ? (
-                <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-4 py-3">
-                  ✓ مفيش أي مخالفات في جدول الأسبوع ده — كله سليم
+                <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-lg px-4 py-3">
+                  {t('sched.noIssues')}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {issues.map(({ name, issues: list }) => (
-                    <div key={name} className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
-                      <div className="font-semibold text-sm text-amber-900 mb-1">{name}</div>
-                      <ul className="text-xs text-amber-700 space-y-0.5">
+                    <div key={name} className="bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg px-4 py-2.5">
+                      <div className="font-semibold text-sm text-amber-900 dark:text-amber-200 mb-1">{name}</div>
+                      <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-0.5">
                         {list.map((it, i) => <li key={i} className="flex items-center gap-1.5"><span className="text-amber-400">●</span> {it}</li>)}
                       </ul>
                     </div>
@@ -513,7 +519,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       {shifts.length > 0 && (
         <div className="flex flex-wrap gap-3 mt-4">
           {shifts.map(s => (
-            <div key={s.id} className="flex items-center gap-1.5 text-xs text-slate-600">
+            <div key={s.id} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
               <div className="w-3 h-3 rounded-full" style={{ background: s.color_code }} />
               {s.name}
             </div>
