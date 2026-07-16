@@ -273,6 +273,29 @@ const en: Dict = {
   'hol.markUsed':       '✓ Mark used',
   'hol.pendingSummary': 'Compensation not used yet',
   'hol.recordUse':      'Record use',
+
+  // reports
+  'rep.loading':        'Loading report…',
+  'rep.title':          'Team Reports',
+  'rep.subtitle':       'Per-agent shift stats over the month',
+  'rep.agents':         'Agents',
+  'rep.workShifts':     'Work shifts',
+  'rep.offDays':        'OFF days',
+  'rep.monthHolidays':  'Holidays this month',
+  'rep.noAgents':       'No agents',
+  'rep.colAgent':       'Agent',
+  'rep.total':          'Total',
+  'rep.nights':         'Nights 🌙',
+  'rep.weekends':       'Fri/Sat',
+  'rep.holidaysWorked': 'Holidays worked',
+  'rep.comp':           'Comp',
+  'rep.grandTotal':     'Total',
+  'rep.used':           'used',
+  'rep.hint':           '💡 Click any agent to see their full month calendar and comp details.',
+  'rep.compDays':       'Compensation days',
+  'rep.compUsedOn':     '✓ Compensated on',
+  'rep.compNotUsed':    '⏳ Comp not used',
+  'rep.compNotGranted': 'Not granted',
 }
 
 const ar: Dict = {
@@ -459,6 +482,28 @@ const ar: Dict = {
   'hol.markUsed':       '✓ سجّل استخدام',
   'hol.pendingSummary': 'تعويضات لم تُستخدم بعد',
   'hol.recordUse':      'سجّل استخدام',
+
+  'rep.loading':        'جاري تحميل التقرير…',
+  'rep.title':          'تقارير الفريق',
+  'rep.subtitle':       'إحصائيات شيفتات كل أجينت على مدار الشهر',
+  'rep.agents':         'الأجينتس',
+  'rep.workShifts':     'شيفتات الشغل',
+  'rep.offDays':        'أيام OFF',
+  'rep.monthHolidays':  'إجازات الشهر',
+  'rep.noAgents':       'لا يوجد أجينتس',
+  'rep.colAgent':       'الأجينت',
+  'rep.total':          'إجمالي',
+  'rep.nights':         'ليالي 🌙',
+  'rep.weekends':       'جُمَع/سبوت',
+  'rep.holidaysWorked': 'إجازات اشتغلها',
+  'rep.comp':           'التعويض',
+  'rep.grandTotal':     'الإجمالي',
+  'rep.used':           'مستخدم',
+  'rep.hint':           '💡 اضغط على أي أجينت لعرض تقويم شهره كامل وتفاصيل أيام التعويض.',
+  'rep.compDays':       'أيام التعويض',
+  'rep.compUsedOn':     '✓ اتعوّض يوم',
+  'rep.compNotUsed':    '⏳ تعويض لم يُستخدم',
+  'rep.compNotGranted': 'لم يُمنح',
 }
 
 const DICT: Record<Lang, Dict> = { en, ar }
