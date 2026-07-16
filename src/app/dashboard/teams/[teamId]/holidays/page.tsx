@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns'
 import {
   Plus, Trash2, Gift, CheckCircle2, Clock, ChevronDown, ChevronUp, AlertCircle
 } from 'lucide-react'
+import { useApp }         from '@/lib/providers'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Holiday {
@@ -28,6 +29,7 @@ interface HolidayWorker {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function HolidaysPage({ params }: { params: { teamId: string } }) {
   const supabase = createClient()
+  const { t } = useApp()
 
   const [holidays, setHolidays]     = useState<Holiday[]>([])
   const [agents, setAgents]         = useState<Agent[]>([])
@@ -60,21 +62,17 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
   async function loadWorkers(holiday: Holiday) {
     if (workers[holiday.id]) return // already loaded
 
-    // Find all schedule_entries on this date that are NOT off
-    // date → day_of_week + week_start_date (week starts Sunday: 1=Sun…7=Sat)
     const d     = parseISO(holiday.date)
     const day   = d.getDay() + 1            // getDay 0=Sun → 1, … 6=Sat → 7
     const weekStartDate = new Date(d)
     weekStartDate.setDate(d.getDate() - d.getDay()) // back to Sunday
     const weekStr = format(weekStartDate, 'yyyy-MM-dd')
 
-    // Get week for this team
     const { data: week } = await supabase.from('weeks')
       .select('id').eq('team_id', params.teamId).eq('week_start_date', weekStr).maybeSingle()
 
     if (!week) { setWorkers(prev => ({ ...prev, [holiday.id]: [] })); return }
 
-    // Get entries for this day (non-null shift = worked)
     const { data: entries } = await supabase.from('schedule_entries')
       .select('agent_id, shift:shifts(name, color_code, is_off)')
       .eq('week_id', week.id)
@@ -94,14 +92,12 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
     setWorkers(prev => ({ ...prev, [holiday.id]: worked }))
   }
 
-  // ── Toggle expand ───────────────────────────────────────────────────────────
   async function toggleExpand(holiday: Holiday) {
     if (expanded === holiday.id) { setExpanded(null); return }
     setExpanded(holiday.id)
     await loadWorkers(holiday)
   }
 
-  // ── Add holiday ─────────────────────────────────────────────────────────────
   async function addHoliday(e: React.FormEvent) {
     e.preventDefault()
     if (!newDate || !newName.trim()) return
@@ -114,14 +110,12 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
     load()
   }
 
-  // ── Delete holiday ──────────────────────────────────────────────────────────
   async function deleteHoliday(id: string) {
-    if (!confirm('حذف هذه الإجازة؟ سيتم حذف سجلات التعويض المرتبطة بها.')) return
+    if (!confirm(t('hol.confirmDelete'))) return
     await supabase.from('holidays').delete().eq('id', id)
     load()
   }
 
-  // ── Grant compensation to one agent ────────────────────────────────────────
   async function grantComp(holiday: Holiday, agentId: string, agentName: string) {
     await supabase.from('compensation_days').upsert({
       team_id:      params.teamId,
@@ -135,29 +129,24 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
     }, { onConflict: 'agent_id,holiday_id' })
 
     await load()
-    // Reload workers for this holiday
     setWorkers(prev => { const n = { ...prev }; delete n[holiday.id]; return n })
     await loadWorkers(holiday)
   }
 
-  // ── Grant to ALL workers ────────────────────────────────────────────────────
   async function grantAll(holiday: Holiday) {
     const list = workers[holiday.id] ?? []
     if (list.length === 0) return
     await Promise.all(list.map(w => grantComp(holiday, w.agent_id, w.agent_name)))
   }
 
-  // ── Mark comp day as used ───────────────────────────────────────────────────
   async function markUsed(compId: string, usedDate: string) {
     await supabase.from('compensation_days').update({
       used: true, used_date: usedDate
     }).eq('id', compId)
     load()
-    // Refresh workers
     setWorkers({})
   }
 
-  // ── Mark comp day as NOT used (undo) ────────────────────────────────────────
   async function markUnused(compId: string) {
     await supabase.from('compensation_days').update({
       used: false, used_date: null
@@ -166,65 +155,63 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
     setWorkers({})
   }
 
-  // ── Summary stats ───────────────────────────────────────────────────────────
   const totalGranted  = compDays.filter(c => c.granted).length
   const totalUsed     = compDays.filter(c => c.used).length
   const totalPending  = compDays.filter(c => c.granted && !c.used).length
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  if (loading) return <div className="p-8 text-slate-400 text-sm">Loading…</div>
+  if (loading) return <div className="p-8 text-slate-400 text-sm">{t('common.loading')}</div>
 
   return (
     <div className="p-8">
       <Link href={`/dashboard/teams/${params.teamId}`}
         className="text-sm text-slate-400 hover:text-blue-600 mb-2 inline-block">
-        ← Team
+        {t('common.backToTeam')}
       </Link>
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">الإجازات الرسمية والتعويضات</h1>
-      <p className="text-slate-500 text-sm mb-6">تتبّع من اشتغل في الإجازات الرسمية ومن أخذ تعويضه</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{t('hol.title')}</h1>
+      <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{t('hol.subtitle')}</p>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="card card-body flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-300">
             <Gift className="w-5 h-5" />
           </div>
-          <div><p className="text-xs text-slate-400">تعويضات ممنوحة</p><h3 className="text-2xl font-bold">{totalGranted}</h3></div>
+          <div><p className="text-xs text-slate-400">{t('hol.granted')}</p><h3 className="text-2xl font-bold text-slate-900 dark:text-white">{totalGranted}</h3></div>
         </div>
         <div className="card card-body flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-300">
             <Clock className="w-5 h-5" />
           </div>
-          <div><p className="text-xs text-slate-400">في الانتظار</p><h3 className="text-2xl font-bold">{totalPending}</h3></div>
+          <div><p className="text-xs text-slate-400">{t('hol.pendingStat')}</p><h3 className="text-2xl font-bold text-slate-900 dark:text-white">{totalPending}</h3></div>
         </div>
         <div className="card card-body flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-300">
             <CheckCircle2 className="w-5 h-5" />
           </div>
-          <div><p className="text-xs text-slate-400">تعويضات مستخدمة</p><h3 className="text-2xl font-bold">{totalUsed}</h3></div>
+          <div><p className="text-xs text-slate-400">{t('hol.usedStat')}</p><h3 className="text-2xl font-bold text-slate-900 dark:text-white">{totalUsed}</h3></div>
         </div>
       </div>
 
       {/* Add holiday form */}
       <div className="card mb-6">
         <div className="card-body">
-          <h2 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
-            <Plus className="w-4 h-4 text-blue-500" /> إضافة إجازة رسمية
+          <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+            <Plus className="w-4 h-4 text-blue-500" /> {t('hol.add')}
           </h2>
           <form onSubmit={addHoliday} className="flex gap-3 flex-wrap">
             <div className="fg flex-1 min-w-[160px]">
-              <label className="label">التاريخ *</label>
+              <label className="label">{t('hol.date')} *</label>
               <input type="date" className="input" required
                 value={newDate} onChange={e => setNewDate(e.target.value)} />
             </div>
             <div className="fg flex-1 min-w-[200px]">
-              <label className="label">اسم الإجازة *</label>
-              <input className="input" placeholder="مثال: عيد الأضحى" required
+              <label className="label">{t('hol.name')} *</label>
+              <input className="input" placeholder={t('hol.namePlaceholder')} required
                 value={newName} onChange={e => setNewName(e.target.value)} />
             </div>
             <div className="flex items-end">
               <button type="submit" disabled={saving} className="btn btn-primary">
-                {saving ? 'جاري الإضافة…' : '+ إضافة'}
+                {saving ? t('hol.adding') : t('hol.addBtn')}
               </button>
             </div>
           </form>
@@ -234,8 +221,8 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
       {/* Holidays list */}
       {holidays.length === 0 ? (
         <div className="card card-body text-center py-16 text-slate-400">
-          <AlertCircle className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-          <p>لا توجد إجازات رسمية مضافة بعد</p>
+          <AlertCircle className="w-10 h-10 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+          <p>{t('hol.none')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -250,10 +237,10 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
               <div key={holiday.id} className="card overflow-hidden">
                 {/* Holiday header */}
                 <div
-                  className="card-body flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                  className="card-body flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors gap-3"
                   onClick={() => toggleExpand(holiday)}>
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-red-50 flex flex-col items-center justify-center text-red-600">
+                    <div className="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/30 flex flex-col items-center justify-center text-red-600 dark:text-red-300">
                       <div className="text-xs font-bold leading-none">
                         {format(parseISO(holiday.date), 'MMM').toUpperCase()}
                       </div>
@@ -262,7 +249,7 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
                       </div>
                     </div>
                     <div>
-                      <div className="font-bold text-slate-800">{holiday.name}</div>
+                      <div className="font-bold text-slate-800 dark:text-slate-100">{holiday.name}</div>
                       <div className="text-xs text-slate-400">
                         {format(parseISO(holiday.date), 'EEEE, d MMMM yyyy')}
                       </div>
@@ -270,22 +257,21 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {/* Quick stats */}
                     {grantedCount > 0 && (
                       <div className="flex gap-2 text-xs">
-                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-semibold">
-                          {grantedCount} تعويض
+                        <span className="bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 px-2 py-1 rounded-full font-semibold">
+                          {grantedCount} {t('hol.compBadge')}
                         </span>
                         {usedCount > 0 && (
-                          <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full font-semibold">
-                            {usedCount} استخدم
+                          <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-1 rounded-full font-semibold">
+                            {usedCount} {t('hol.usedBadge')}
                           </span>
                         )}
                       </div>
                     )}
                     <button
                       onClick={e => { e.stopPropagation(); deleteHoliday(holiday.id) }}
-                      className="text-slate-300 hover:text-red-400 transition-colors mr-1">
+                      className="text-slate-300 dark:text-slate-600 hover:text-red-400 transition-colors mx-1">
                       <Trash2 className="w-4 h-4" />
                     </button>
                     {isOpen
@@ -297,23 +283,23 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
 
                 {/* Expanded: workers */}
                 {isOpen && (
-                  <div className="border-t border-slate-100 px-6 pb-5 pt-4">
+                  <div className="border-t border-slate-100 dark:border-slate-800 px-6 pb-5 pt-4">
                     {!dayWorkers ? (
-                      <p className="text-slate-400 text-sm text-center py-4">جاري البحث…</p>
+                      <p className="text-slate-400 text-sm text-center py-4">{t('hol.searching')}</p>
                     ) : dayWorkers.length === 0 ? (
                       <p className="text-slate-400 text-sm text-center py-4">
-                        لا يوجد أجينتس مسجّلين بشيفت في هذا اليوم
+                        {t('hol.noWorkers')}
                       </p>
                     ) : (
                       <>
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-sm font-semibold text-slate-700">
-                            اشتغلوا في هذا اليوم ({dayWorkers.length})
+                        <div className="flex items-center justify-between mb-3 gap-2">
+                          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            {t('hol.workedThisDay')} ({dayWorkers.length})
                           </h3>
                           <button onClick={() => grantAll(holiday)}
                             className="btn btn-primary btn-sm">
                             <Gift className="w-3.5 h-3.5" />
-                            منح تعويض للكل
+                            {t('hol.grantAll')}
                           </button>
                         </div>
 
@@ -348,25 +334,25 @@ export default function HolidaysPage({ params }: { params: { teamId: string } })
       {totalPending > 0 && (
         <div className="mt-8 card">
           <div className="card-body">
-            <h2 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
+            <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-500" />
-              تعويضات لم تُستخدم بعد ({totalPending})
+              {t('hol.pendingSummary')} ({totalPending})
             </h2>
             <div className="space-y-2">
               {compDays.filter(c => c.granted && !c.used).map(c => {
                 const agent = agents.find(a => a.id === c.agent_id)
                 return (
                   <div key={c.id}
-                    className="flex items-center justify-between py-2.5 px-4 bg-amber-50 rounded-xl border border-amber-100">
+                    className="flex items-center justify-between py-2.5 px-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800 gap-3">
                     <div>
-                      <span className="font-semibold text-slate-800 text-sm">{agent?.name ?? '—'}</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{agent?.name ?? '—'}</span>
                       <span className="text-slate-400 text-xs mx-2">←</span>
-                      <span className="text-xs text-amber-700 font-medium">{c.holiday_name}</span>
+                      <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">{c.holiday_name}</span>
                       <span className="text-xs text-slate-400 mx-1">
                         ({format(parseISO(c.holiday_date), 'd MMM')})
                       </span>
                     </div>
-                    <UsedDatePicker compId={c.id} onSave={(date) => markUsed(c.id, date)} />
+                    <UsedDatePicker onSave={(date) => markUsed(c.id, date)} />
                   </div>
                 )
               })}
@@ -388,17 +374,18 @@ function WorkerRow({
   onMarkUsed: (date: string) => void
   onMarkUnused: () => void
 }) {
+  const { t } = useApp()
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [usedDate, setUsedDate]             = useState('')
 
   return (
-    <div className="flex items-center justify-between py-3 px-4 bg-slate-50 rounded-xl border border-slate-100">
+    <div className="flex items-center justify-between py-3 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 gap-2">
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">
+        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 flex items-center justify-center text-xs font-bold">
           {worker.agent_name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}
         </div>
         <div>
-          <div className="font-semibold text-slate-800 text-sm">{worker.agent_name}</div>
+          <div className="font-semibold text-slate-800 dark:text-slate-100 text-sm">{worker.agent_name}</div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <div className="w-2 h-2 rounded-full" style={{ background: worker.shift_color }} />
             <span className="text-xs text-slate-400">{worker.shift_name}</span>
@@ -408,33 +395,30 @@ function WorkerRow({
 
       <div className="flex items-center gap-2">
         {!comp?.granted ? (
-          // Not granted yet
           <button onClick={onGrant}
-            className="btn btn-ghost btn-sm text-blue-600 border-blue-200 hover:bg-blue-50">
-            <Gift className="w-3.5 h-3.5" /> منح تعويض
+            className="btn btn-ghost btn-sm text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/30">
+            <Gift className="w-3.5 h-3.5" /> {t('hol.grant')}
           </button>
         ) : comp.used ? (
-          // Used ✓
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+            <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-xs font-semibold px-3 py-1.5 rounded-full">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              استخدم {comp.used_date ? format(parseISO(comp.used_date), 'd MMM') : ''}
+              {t('hol.usedOn')} {comp.used_date ? format(parseISO(comp.used_date), 'd MMM') : ''}
             </span>
             <button onClick={onMarkUnused}
               className="text-xs text-slate-400 hover:text-red-400 underline transition-colors">
-              تراجع
+              {t('hol.undo')}
             </button>
           </div>
         ) : (
-          // Granted but not used yet
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-              <Clock className="w-3.5 h-3.5" /> تعويض ممنوح
+            <span className="flex items-center gap-1 bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-full">
+              <Clock className="w-3.5 h-3.5" /> {t('hol.compGranted')}
             </span>
             {!showDatePicker ? (
               <button onClick={() => setShowDatePicker(true)}
                 className="btn btn-success btn-sm">
-                ✓ سجّل استخدام
+                {t('hol.markUsed')}
               </button>
             ) : (
               <div className="flex items-center gap-1">
@@ -455,7 +439,8 @@ function WorkerRow({
 }
 
 // ─── Used Date Picker (for pending summary) ───────────────────────────────────
-function UsedDatePicker({ compId, onSave }: { compId: string; onSave: (date: string) => void }) {
+function UsedDatePicker({ onSave }: { onSave: (date: string) => void }) {
+  const { t } = useApp()
   const [show, setShow]     = useState(false)
   const [date, setDate]     = useState('')
 
@@ -469,7 +454,7 @@ function UsedDatePicker({ compId, onSave }: { compId: string; onSave: (date: str
     </div>
   ) : (
     <button onClick={() => setShow(true)} className="btn btn-success btn-sm">
-      <CheckCircle2 className="w-3.5 h-3.5" /> سجّل استخدام
+      <CheckCircle2 className="w-3.5 h-3.5" /> {t('hol.recordUse')}
     </button>
   )
 }
