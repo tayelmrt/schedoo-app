@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import Link                    from 'next/link'
 import { Save, Plus, X, Users, Mail, ShieldCheck } from 'lucide-react'
+import { useApp }              from '@/lib/providers'
 
 export default function TeamSettingsPage({ params }: { params: { teamId: string } }) {
   const supabase = createClient()
+  const { t } = useApp()
 
   const [team, setTeam]           = useState<any>(null)
   const [teamName, setTeamName]   = useState('')
@@ -55,21 +57,21 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
     setList(list.filter(e => e !== email))
   }
 
-  if (loading) return <div className="p-8 text-slate-400 text-sm">Loading…</div>
+  if (loading) return <div className="p-8 text-slate-400 text-sm">{t('common.loading')}</div>
 
   return (
     <div className="p-8 max-w-2xl">
       <Link href={`/dashboard/teams/${params.teamId}`}
         className="text-sm text-slate-400 hover:text-blue-600 mb-2 inline-block">
-        ← Team
+        {t('common.backToTeam')}
       </Link>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Team Settings</h1>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">{t('set.title')}</h1>
 
       {/* Team name */}
       <div className="card mb-5">
         <div className="card-body">
-          <h2 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <Users className="w-4 h-4 text-blue-500" /> Team Name
+          <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
+            <Users className="w-4 h-4 text-blue-500" /> {t('set.teamName')}
           </h2>
           <input className="input" value={teamName} onChange={e => setTeamName(e.target.value)} />
         </div>
@@ -78,18 +80,18 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
       {/* Co-Admins */}
       <div className="card mb-5">
         <div className="card-body">
-          <h2 className="font-semibold text-slate-700 mb-1 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-blue-500" /> Co-Admins
+          <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-blue-500" /> {t('set.coAdmins')}
           </h2>
           <p className="text-xs text-slate-400 mb-4">
-            يقدروا يدخلوا ويديروا التيم بإيميلاتهم
+            {t('set.coAdminsHint')}
           </p>
 
           {/* Existing */}
           <div className="flex flex-wrap gap-2 mb-3">
             {adminEmails.map(email => (
               <span key={email}
-                className="flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                className="flex items-center gap-1.5 bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 text-xs font-medium px-3 py-1.5 rounded-full">
                 {email}
                 <button onClick={() => removeEmail(adminEmails, setAdminEmails, email)}
                   className="text-blue-400 hover:text-red-500 transition-colors">
@@ -98,7 +100,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
               </span>
             ))}
             {adminEmails.length === 0 && (
-              <span className="text-xs text-slate-400">لا يوجد co-admins بعد</span>
+              <span className="text-xs text-slate-400">{t('set.noCoAdmins')}</span>
             )}
           </div>
 
@@ -109,7 +111,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
               onKeyDown={e => e.key === 'Enter' && addEmail(adminEmails, setAdminEmails, newAdmin, setNewAdmin)} />
             <button onClick={() => addEmail(adminEmails, setAdminEmails, newAdmin, setNewAdmin)}
               className="btn btn-ghost btn-sm">
-              <Plus className="w-4 h-4" /> Add
+              <Plus className="w-4 h-4" /> {t('common.add')}
             </button>
           </div>
         </div>
@@ -118,17 +120,17 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
       {/* Managers */}
       <div className="card mb-6">
         <div className="card-body">
-          <h2 className="font-semibold text-slate-700 mb-1 flex items-center gap-2">
-            <Mail className="w-4 h-4 text-emerald-500" /> Manager Emails
+          <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-2">
+            <Mail className="w-4 h-4 text-emerald-500" /> {t('set.managerEmails')}
           </h2>
           <p className="text-xs text-slate-400 mb-4">
-            هيستلموا الجدول النهائي على إيميلاتهم
+            {t('set.managerHint')}
           </p>
 
           <div className="flex flex-wrap gap-2 mb-3">
             {managerEmails.map(email => (
               <span key={email}
-                className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-xs font-medium px-3 py-1.5 rounded-full">
                 {email}
                 <button onClick={() => removeEmail(managerEmails, setManagerEmails, email)}
                   className="text-emerald-400 hover:text-red-500 transition-colors">
@@ -137,7 +139,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
               </span>
             ))}
             {managerEmails.length === 0 && (
-              <span className="text-xs text-slate-400">لا يوجد managers بعد</span>
+              <span className="text-xs text-slate-400">{t('set.noManagers')}</span>
             )}
           </div>
 
@@ -147,7 +149,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
               onKeyDown={e => e.key === 'Enter' && addEmail(managerEmails, setManagerEmails, newManager, setNewManager)} />
             <button onClick={() => addEmail(managerEmails, setManagerEmails, newManager, setNewManager)}
               className="btn btn-ghost btn-sm">
-              <Plus className="w-4 h-4" /> Add
+              <Plus className="w-4 h-4" /> {t('common.add')}
             </button>
           </div>
         </div>
@@ -155,7 +157,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
 
       <button onClick={save} disabled={saving} className="btn btn-primary w-full">
         <Save className="w-4 h-4" />
-        {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Changes'}
+        {saving ? t('req.saving') : saved ? t('common.saved') : t('set.saveChanges')}
       </button>
     </div>
   )

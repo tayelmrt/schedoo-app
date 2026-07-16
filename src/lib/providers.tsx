@@ -136,6 +136,66 @@ const en: Dict = {
   // days
   'day.0': 'Sunday', 'day.1': 'Monday', 'day.2': 'Tuesday', 'day.3': 'Wednesday',
   'day.4': 'Thursday', 'day.5': 'Friday', 'day.6': 'Saturday',
+  'dayShort.0': 'Sun', 'dayShort.1': 'Mon', 'dayShort.2': 'Tue', 'dayShort.3': 'Wed',
+  'dayShort.4': 'Thu', 'dayShort.5': 'Fri', 'dayShort.6': 'Sat',
+
+  // common
+  'common.backToTeam': '← Team',
+  'common.loading':    'Loading…',
+  'common.add':        'Add',
+  'common.saved':      '✓ Saved!',
+
+  // auth
+  'auth.tagline':    'Sign in to manage your team schedules',
+  'auth.google':     'Continue with Google',
+  'auth.orEmail':    'or email',
+  'auth.email':      'Email',
+  'auth.password':   'Password',
+  'auth.signingIn':  'Signing in…',
+  'auth.signIn':     'Sign In',
+  'auth.signUp':     'Sign Up',
+  'auth.checkEmail': 'Check your email to confirm your account.',
+
+  // shifts
+  'shifts.title':         'Shift Configuration',
+  'shifts.addType':       'Add Shift Type',
+  'shifts.name':          'Name',
+  'shifts.namePlaceholder':'e.g. Morning',
+  'shifts.start':         'Start Time',
+  'shifts.end':           'End Time',
+  'shifts.color':         'Color',
+  'shifts.isOff':         'This is an "OFF / Day Off" shift',
+  'shifts.adding':        'Adding…',
+  'shifts.add':           'Add Shift',
+  'shifts.colShift':      'Shift',
+  'shifts.colHours':      'Hours',
+  'shifts.colType':       'Type',
+  'shifts.dayOff':        'Day Off',
+  'shifts.shift':         'Shift',
+  'shifts.none':          'No shifts defined yet',
+  'shifts.confirmDelete': 'Delete this shift?',
+
+  // requirements
+  'req.title':    'Requirements Matrix',
+  'req.subtitle': 'Min and Max agents per shift per day — leave Max empty for no limit',
+  'req.saveAll':  'Save All',
+  'req.saving':   'Saving…',
+  'req.minMax':   'Min / Max',
+  'req.noShifts': 'No shifts defined yet.',
+  'req.addFirst': 'Add shifts first',
+  'req.minTitle': 'Minimum',
+  'req.maxTitle': 'Maximum (empty = no limit)',
+
+  // team settings
+  'set.title':         'Team Settings',
+  'set.teamName':      'Team Name',
+  'set.coAdmins':      'Co-Admins',
+  'set.coAdminsHint':  'They can sign in and manage the team with their emails',
+  'set.noCoAdmins':    'No co-admins yet',
+  'set.managerEmails': 'Manager Emails',
+  'set.managerHint':   'They receive the final schedule by email',
+  'set.noManagers':    'No managers yet',
+  'set.saveChanges':   'Save Changes',
 }
 
 const ar: Dict = {
@@ -193,6 +253,61 @@ const ar: Dict = {
 
   'day.0': 'الأحد', 'day.1': 'الإثنين', 'day.2': 'الثلاثاء', 'day.3': 'الأربعاء',
   'day.4': 'الخميس', 'day.5': 'الجمعة', 'day.6': 'السبت',
+  'dayShort.0': 'أحد', 'dayShort.1': 'إثنين', 'dayShort.2': 'ثلاثاء', 'dayShort.3': 'أربعاء',
+  'dayShort.4': 'خميس', 'dayShort.5': 'جمعة', 'dayShort.6': 'سبت',
+
+  'common.backToTeam': '← الفريق',
+  'common.loading':    'جاري التحميل…',
+  'common.add':        'إضافة',
+  'common.saved':      '✓ اتحفظ!',
+
+  'auth.tagline':    'سجّل دخولك لإدارة جداول فريقك',
+  'auth.google':     'المتابعة بجوجل',
+  'auth.orEmail':    'أو بالإيميل',
+  'auth.email':      'الإيميل',
+  'auth.password':   'كلمة المرور',
+  'auth.signingIn':  'جاري الدخول…',
+  'auth.signIn':     'تسجيل الدخول',
+  'auth.signUp':     'إنشاء حساب',
+  'auth.checkEmail': 'راجع إيميلك لتأكيد الحساب.',
+
+  'shifts.title':         'إعداد الشيفتات',
+  'shifts.addType':       'إضافة نوع شيفت',
+  'shifts.name':          'الاسم',
+  'shifts.namePlaceholder':'مثال: صباحي',
+  'shifts.start':         'وقت البداية',
+  'shifts.end':           'وقت النهاية',
+  'shifts.color':         'اللون',
+  'shifts.isOff':         'ده شيفت "إجازة / يوم راحة"',
+  'shifts.adding':        'جاري الإضافة…',
+  'shifts.add':           'إضافة شيفت',
+  'shifts.colShift':      'الشيفت',
+  'shifts.colHours':      'المواعيد',
+  'shifts.colType':       'النوع',
+  'shifts.dayOff':        'يوم راحة',
+  'shifts.shift':         'شيفت',
+  'shifts.none':          'مفيش شيفتات لسه',
+  'shifts.confirmDelete': 'تمسح الشيفت ده؟',
+
+  'req.title':    'مصفوفة المتطلبات',
+  'req.subtitle': 'الحد الأدنى والأقصى للموظفين لكل شيفت في كل يوم — سيب الأقصى فاضي لو بدون حد',
+  'req.saveAll':  'حفظ الكل',
+  'req.saving':   'جاري الحفظ…',
+  'req.minMax':   'أدنى / أقصى',
+  'req.noShifts': 'مفيش شيفتات لسه.',
+  'req.addFirst': 'أضف شيفتات الأول',
+  'req.minTitle': 'الحد الأدنى',
+  'req.maxTitle': 'الحد الأقصى (فاضي = بدون حد)',
+
+  'set.title':         'إعدادات الفريق',
+  'set.teamName':      'اسم الفريق',
+  'set.coAdmins':      'أدمنز مشاركين',
+  'set.coAdminsHint':  'يقدروا يدخلوا ويديروا الفريق بإيميلاتهم',
+  'set.noCoAdmins':    'مفيش أدمنز مشاركين لسه',
+  'set.managerEmails': 'إيميلات المانجرز',
+  'set.managerHint':   'هيستلموا الجدول النهائي على إيميلاتهم',
+  'set.noManagers':    'مفيش مانجرز لسه',
+  'set.saveChanges':   'حفظ التغييرات',
 }
 
 const DICT: Record<Lang, Dict> = { en, ar }
