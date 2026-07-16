@@ -4,14 +4,17 @@ import { useEffect, useState } from 'react'
 import Link                    from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient }        from '@/lib/supabase/client'
+import { useApp }              from '@/lib/providers'
 import {
   CalendarCheck, CalendarDays, Plane, LogOut, Menu, X, Loader2, Clock, AlertCircle,
+  Sun, Moon, Languages,
 } from 'lucide-react'
 
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
   const router   = useRouter()
   const pathname = usePathname()
+  const { t, theme, toggleTheme, lang, toggleLang } = useApp()
 
   const [view, setView]   = useState<'loading'|'pending'|'no-agent'|'ok'>('loading')
   const [name, setName]   = useState('')
@@ -37,9 +40,9 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   async function signOut() { await supabase.auth.signOut(); router.replace('/auth/login') }
 
   const nav = [
-    { href: '/me',       label: 'تسجيل الجدول', icon: CalendarCheck },
-    { href: '/me/month', label: 'جدولي الشهري',  icon: CalendarDays },
-    { href: '/me/leave', label: 'إجازاتي',       icon: Plane },
+    { href: '/me',       label: t('me.nav.register'), icon: CalendarCheck },
+    { href: '/me/month', label: t('me.nav.month'),    icon: CalendarDays },
+    { href: '/me/leave', label: t('me.nav.leave'),    icon: Plane },
   ]
 
   if (view === 'loading')
@@ -47,24 +50,24 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
 
   if (view === 'pending')
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-md text-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 max-w-md text-center">
           <Clock className="w-14 h-14 text-amber-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-slate-800 mb-2">في انتظار موافقة الأدمين</h1>
-          <p className="text-slate-500 text-sm">أهلاً {name || ''} — حسابك اتسجّل بنجاح. لسه محتاج الأدمين يوافق على دخولك.</p>
-          <button onClick={signOut} className="btn btn-ghost mt-6 mx-auto"><LogOut className="w-4 h-4" /> خروج</button>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">{t('me.pendingTitle')}</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">{t('me.pendingHi')} {name || ''} {t('me.pendingBody')}</p>
+          <button onClick={signOut} className="btn btn-ghost mt-6 mx-auto"><LogOut className="w-4 h-4" /> {t('me.exit')}</button>
         </div>
       </div>
     )
 
   if (view === 'no-agent')
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 max-w-md text-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 max-w-md text-center">
           <AlertCircle className="w-14 h-14 text-red-300 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-slate-800 mb-2">مفيش صلاحية دخول</h1>
-          <p className="text-slate-500 text-sm">الإيميل ده لسه مش مضاف لأي فريق. تواصل مع الأدمين.</p>
-          <button onClick={signOut} className="btn btn-ghost mt-6 mx-auto"><LogOut className="w-4 h-4" /> خروج</button>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">{t('me.noAccessTitle')}</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">{t('me.noAccessDesc')}</p>
+          <button onClick={signOut} className="btn btn-ghost mt-6 mx-auto"><LogOut className="w-4 h-4" /> {t('me.exit')}</button>
         </div>
       </div>
     )
@@ -104,18 +107,32 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
         })}
       </nav>
 
+      {/* Controls */}
+      <div className="px-3 py-3 border-t border-slate-700 space-y-1">
+        <button onClick={toggleTheme}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {theme === 'dark' ? t('theme.light') : t('theme.dark')}
+        </button>
+        <button onClick={toggleLang}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Languages className="w-4 h-4" />
+          {lang === 'ar' ? 'English' : 'العربية'}
+        </button>
+      </div>
+
       <div className="px-4 py-4 border-t border-slate-700">
         <button onClick={signOut} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors">
-          <LogOut className="w-4 h-4" /> تسجيل الخروج
+          <LogOut className="w-4 h-4" /> {t('me.signOut')}
         </button>
       </div>
     </aside>
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       {/* Desktop sidebar */}
-      <div className="hidden md:block fixed inset-y-0 left-0 z-20">{sidebar}</div>
+      <div className="hidden md:block fixed inset-y-0 start-0 z-20">{sidebar}</div>
 
       {/* Mobile top bar */}
       <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-slate-900 text-white px-4 h-14 shadow">
@@ -134,7 +151,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
         </div>
       )}
 
-      <main className="md:ml-64 min-h-screen">{children}</main>
+      <main className="md:ms-64 min-h-screen">{children}</main>
     </div>
   )
 }

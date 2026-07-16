@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { hexToAlpha } from '@/lib/utils'
 import type { Shift } from '@/lib/types'
+import { useApp }      from '@/lib/providers'
 
 interface Week { id: string; week_start_date: string }
 interface Entry { week_id: string; day_of_week: number; shift_id: string | null }
@@ -19,6 +20,7 @@ interface Comp { id: string; holiday_name: string; holiday_date: string; granted
 
 export default function AgentMonth() {
   const router = useRouter()
+  const { t } = useApp()
   const [month, setMonth]   = useState(startOfMonth(new Date()))
   const [name, setName]     = useState('')
   const [shifts, setShifts] = useState<Shift[]>([])
@@ -79,43 +81,43 @@ export default function AgentMonth() {
   return (
     <div>
       <div className="max-w-2xl mx-auto p-4 pt-5">
-        <h1 className="text-xl font-bold text-slate-800 mb-4">جدولي الشهري — {name}</h1>
+        <h1 className="text-xl font-bold text-slate-800 dark:text-white mb-4">{t('me.nav.month')} — {name}</h1>
         {/* Month nav */}
         <div className="flex items-center justify-center gap-3 mb-4">
-          <button onClick={() => setMonth(m => startOfMonth(addDays(m,-1)))} className="w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center"><ChevronLeft className="w-4 h-4" /></button>
-          <span className="font-bold text-slate-700 min-w-[130px] text-center">{format(month,'MMMM yyyy')}</span>
-          <button onClick={() => setMonth(m => startOfMonth(addDays(endOfMonth(m),1)))} className="w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center"><ChevronRight className="w-4 h-4" /></button>
+          <button onClick={() => setMonth(m => startOfMonth(addDays(m,-1)))} className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center rtl:rotate-180"><ChevronLeft className="w-4 h-4" /></button>
+          <span className="font-bold text-slate-700 dark:text-slate-200 min-w-[130px] text-center">{format(month,'MMMM yyyy')}</span>
+          <button onClick={() => setMonth(m => startOfMonth(addDays(endOfMonth(m),1)))} className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center rtl:rotate-180"><ChevronRight className="w-4 h-4" /></button>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-3 text-center">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-center">
             <Briefcase className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
-            <div className="text-xl font-bold">{work}</div><div className="text-[10px] text-slate-400">شيفتات شغل</div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white">{work}</div><div className="text-[10px] text-slate-400">{t('meMonth.workShifts')}</div>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-3 text-center">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-center">
             <Umbrella className="w-4 h-4 text-slate-400 mx-auto mb-1" />
-            <div className="text-xl font-bold">{off}</div><div className="text-[10px] text-slate-400">أيام OFF</div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white">{off}</div><div className="text-[10px] text-slate-400">{t('meMonth.offDays')}</div>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-3 text-center">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-center">
             <Gift className="w-4 h-4 text-red-500 mx-auto mb-1" />
-            <div className="text-xl font-bold">{holidayWorked}</div><div className="text-[10px] text-slate-400">إجازات اشتغلتها</div>
+            <div className="text-xl font-bold text-slate-900 dark:text-white">{holidayWorked}</div><div className="text-[10px] text-slate-400">{t('meMonth.holidaysWorked')}</div>
           </div>
         </div>
 
         {/* Calendar */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-3 mb-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 mb-4">
           <div className="grid grid-cols-7 gap-1.5">
-            {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d =>
-              <div key={d} className="text-center text-[10px] font-bold text-slate-400">{d}</div>)}
+            {[0,1,2,3,4,5,6].map(d =>
+              <div key={d} className="text-center text-[10px] font-bold text-slate-400">{t(`dayShort.${d}`)}</div>)}
             {Array.from({ length: leadBlanks }).map((_, i) => <div key={'b'+i} />)}
             {days.map(d => {
               const sh = shiftOnDate(d); const ds = format(d,'yyyy-MM-dd'); const hol = holidayDates.has(ds)
               return (
-                <div key={ds} className={`rounded-lg p-1.5 text-center border ${hol ? 'border-red-300' : 'border-slate-100'}`}
-                  style={sh ? { background: hexToAlpha(sh.color_code, 0.18) } : { background:'#fff' }}>
+                <div key={ds} className={`rounded-lg p-1.5 text-center border ${hol ? 'border-red-300' : 'border-slate-100 dark:border-slate-700'}`}
+                  style={sh ? { background: hexToAlpha(sh.color_code, 0.18) } : {}}>
                   <div className="text-[10px] text-slate-400">{format(d,'d')}{hol && ' 🎌'}</div>
-                  <div className="text-[10px] font-semibold leading-tight mt-0.5" style={sh ? { color: sh.color_code } : { color:'#cbd5e1' }}>
+                  <div className="text-[10px] font-semibold leading-tight mt-0.5" style={sh ? { color: sh.color_code } : { color:'#94a3b8' }}>
                     {sh ? sh.name : '—'}
                   </div>
                 </div>
@@ -126,15 +128,15 @@ export default function AgentMonth() {
 
         {/* Compensation */}
         {comps.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <div className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5"><Gift className="w-4 h-4 text-blue-500" /> أيام التعويض بتاعتي</div>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+            <div className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-1.5"><Gift className="w-4 h-4 text-blue-500" /> {t('meMonth.myComp')}</div>
             <div className="space-y-2">
               {comps.map(c => (
-                <div key={c.id} className="flex items-center justify-between text-xs bg-slate-50 rounded-lg px-3 py-2">
-                  <span className="text-slate-600">{c.holiday_name} <span className="text-slate-400">({format(parseISO(c.holiday_date),'d MMM')})</span></span>
-                  {c.used ? <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">✓ اتعوّض يوم {c.used_date ? format(parseISO(c.used_date),'d MMM') : ''}</span>
-                    : c.granted ? <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold">⏳ تعويض لسه</span>
-                    : <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold">قيد المراجعة</span>}
+                <div key={c.id} className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
+                  <span className="text-slate-600 dark:text-slate-300">{c.holiday_name} <span className="text-slate-400">({format(parseISO(c.holiday_date),'d MMM')})</span></span>
+                  {c.used ? <span className="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-0.5 rounded-full font-semibold">{t('rep.compUsedOn')} {c.used_date ? format(parseISO(c.used_date),'d MMM') : ''}</span>
+                    : c.granted ? <span className="bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5 rounded-full font-semibold">{t('meMonth.compPending')}</span>
+                    : <span className="bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 px-2 py-0.5 rounded-full font-semibold">{t('meMonth.underReview')}</span>}
                 </div>
               ))}
             </div>
