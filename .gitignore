@@ -27,3 +27,7 @@ yarn-error.log*
 *.pem
 .vercel
 *.tsbuildinfo
+
+# Local agent config & data backups (may contain sensitive data)
+.claude/
+supabase/backups/

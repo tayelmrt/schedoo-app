@@ -24,7 +24,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       if (!data.user) { router.replace('/auth/login'); return }
       const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
       if (!me) { setView('no-agent'); return }
-      if (me.role === 'admin') { router.replace('/dashboard'); return }
+      if (me.isManager) { router.replace('/dashboard'); return }
       if (me.role !== 'agent') { setView('no-agent'); return }
       setName(me.agent?.name ?? '')
       setTeam(me.team?.name ?? '')

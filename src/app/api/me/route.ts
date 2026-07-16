@@ -3,65 +3,119 @@ import { cookies }                   from 'next/headers'
 import { NextResponse }              from 'next/server'
 import { createServiceClient }       from '@/lib/supabase/server'
 
-// GET /api/me — resolves the logged-in user's role and links agent records
+const MANAGER_ROLES = ['owner', 'admin', 'account_manager', 'team_manager']
+
+// GET /api/me — resolves the logged-in user's role in the multi-tenant model.
+// Returns: { authenticated, role, isManager, email, org, accounts, teams, agent, status }
 export async function GET() {
   const supabase = createRouteHandlerClient({ cookies })
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) return NextResponse.json({ role: 'none', authenticated: false })
+  if (!user) return NextResponse.json({ authenticated: false, role: 'none' })
 
   const email = (user.email ?? '').toLowerCase()
   const svc   = createServiceClient()
 
-  // 1. Admin? (owns a team OR is a co-admin by email)
-  const { data: adminTeams } = await svc
-    .from('teams')
-    .select('id, name')
-    .or(`admin_id.eq.${user.id},admin_emails.cs.{${email}}`)
+  // ── Gather the user's org-level position ──────────────────────────────
+  const [{ data: ownedOrgs }, { data: memberships }, { data: legacyTeams }] = await Promise.all([
+    svc.from('organizations').select('id, name').eq('owner_id', user.id),
+    svc.from('memberships').select('*').eq('user_id', user.id),
+    // legacy owner/co-admin (pre-multitenant) — kept for backward compatibility
+    svc.from('teams').select('id, name, org_id, account_id, manager_emails')
+       .or(`admin_id.eq.${user.id},admin_emails.cs.{${email}}`),
+  ])
 
-  if (adminTeams && adminTeams.length > 0) {
-    return NextResponse.json({ role: 'admin', email, teams: adminTeams })
+  const owned  = ownedOrgs   ?? []
+  const mems   = memberships ?? []
+  const legacy = legacyTeams ?? []
+
+  // ── Determine the highest role ────────────────────────────────────────
+  let role: string = 'none'
+  if      (owned.length || mems.some(m => m.role === 'owner')) role = 'owner'
+  else if (mems.some(m => m.role === 'admin'))                 role = 'admin'
+  else if (mems.some(m => m.role === 'account_manager'))       role = 'account_manager'
+  else if (mems.some(m => m.role === 'team_manager'))          role = 'team_manager'
+  else if (legacy.length)                                      role = 'admin' // legacy admin
+
+  // ── Resolve the primary organization ──────────────────────────────────
+  const orgId: string | null =
+    owned[0]?.id ?? mems[0]?.org_id ?? legacy[0]?.org_id ?? null
+
+  let org: { id: string; name: string } | null = null
+  if (orgId) {
+    const { data } = await svc.from('organizations').select('id, name').eq('id', orgId).maybeSingle()
+    org = data
   }
 
-  // 2. Agent? Link by email if a matching agent row exists and isn't linked yet
-  const { data: agentByEmail } = await svc
-    .from('agents')
-    .select('*')
-    .ilike('email', email)
-    .maybeSingle()
+  // ── Manageable accounts + teams (managers only) ───────────────────────
+  let accounts: any[] = []
+  let teams: any[]    = []
 
-  if (agentByEmail) {
-    // Link the auth user to this agent record on first login
-    if (!agentByEmail.auth_user_id) {
-      await svc.from('agents').update({ auth_user_id: user.id }).eq('id', agentByEmail.id)
-      agentByEmail.auth_user_id = user.id
+  if (MANAGER_ROLES.includes(role) && orgId) {
+    if (role === 'owner' || role === 'admin') {
+      const [{ data: accs }, { data: tms }] = await Promise.all([
+        svc.from('accounts').select('id, name, org_id').eq('org_id', orgId).order('created_at'),
+        svc.from('teams').select('id, name, org_id, account_id, manager_emails').eq('org_id', orgId).order('created_at'),
+      ])
+      accounts = accs ?? []; teams = tms ?? []
+    } else if (role === 'account_manager') {
+      const accIds = mems.filter(m => m.role === 'account_manager' && m.account_id).map(m => m.account_id)
+      if (accIds.length) {
+        const [{ data: accs }, { data: tms }] = await Promise.all([
+          svc.from('accounts').select('id, name, org_id').in('id', accIds),
+          svc.from('teams').select('id, name, org_id, account_id, manager_emails').in('account_id', accIds),
+        ])
+        accounts = accs ?? []; teams = tms ?? []
+      }
+    } else if (role === 'team_manager') {
+      const teamIds = mems.filter(m => m.role === 'team_manager' && m.team_id).map(m => m.team_id)
+      if (teamIds.length) {
+        const { data: tms } = await svc.from('teams').select('id, name, org_id, account_id, manager_emails').in('id', teamIds)
+        teams = tms ?? []
+      }
     }
-    const { data: team } = await svc
-      .from('teams').select('id, name').eq('id', agentByEmail.team_id).single()
 
-    return NextResponse.json({
-      role:   'agent',
-      email,
-      status: agentByEmail.status,          // 'pending' | 'approved'
-      agent:  { id: agentByEmail.id, name: agentByEmail.name, team_id: agentByEmail.team_id },
-      team,
-    })
+    // Merge in any legacy teams not already present
+    const have = new Set(teams.map(t => t.id))
+    for (const t of legacy) if (!have.has(t.id)) { teams.push(t); have.add(t.id) }
   }
 
-  // 3. Already linked agent (email changed?) — fallback by auth_user_id
-  const { data: agentByUser } = await svc
-    .from('agents').select('*').eq('auth_user_id', user.id).maybeSingle()
+  // ── Agent resolution (link auth_user_id on first login) ───────────────
+  let agent: any = null
+  let status: string | null = null
+  let team: any = null
 
-  if (agentByUser) {
-    const { data: team } = await svc
-      .from('teams').select('id, name').eq('id', agentByUser.team_id).single()
-    return NextResponse.json({
-      role: 'agent', email, status: agentByUser.status,
-      agent: { id: agentByUser.id, name: agentByUser.name, team_id: agentByUser.team_id },
-      team,
-    })
+  const { data: agentByEmail } = await svc.from('agents').select('*').ilike('email', email).maybeSingle()
+  let agentRow = agentByEmail
+  if (!agentRow) {
+    const { data: agentByUser } = await svc.from('agents').select('*').eq('auth_user_id', user.id).maybeSingle()
+    agentRow = agentByUser
   }
 
-  // 4. No role — signed up but not added by any admin
-  return NextResponse.json({ role: 'none', authenticated: true, email })
+  if (agentRow) {
+    if (!agentRow.auth_user_id) {
+      await svc.from('agents').update({ auth_user_id: user.id }).eq('id', agentRow.id)
+      agentRow.auth_user_id = user.id
+    }
+    agent  = { id: agentRow.id, name: agentRow.name, team_id: agentRow.team_id }
+    status = agentRow.status
+    const { data: t } = await svc.from('teams').select('id, name').eq('id', agentRow.team_id).maybeSingle()
+    team = t
+    if (role === 'none') role = 'agent'
+  }
+
+  const isManager = MANAGER_ROLES.includes(role)
+
+  return NextResponse.json({
+    authenticated: true,
+    role,          // owner | admin | account_manager | team_manager | agent | none
+    isManager,     // true → dashboard access
+    email,
+    org,
+    accounts,
+    teams,
+    agent,
+    status,        // agent approval status: 'pending' | 'approved'
+    team,          // agent's team
+  })
 }

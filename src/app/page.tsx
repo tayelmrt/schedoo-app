@@ -12,8 +12,8 @@ export default function Home() {
       const res = await fetch('/api/me')
       const me  = await res.json()
 
-      if (!me.authenticated && me.role === 'none') { router.replace('/auth/login'); return }
-      if (me.role === 'admin') { router.replace('/dashboard'); return }
+      if (!me.authenticated) { router.replace('/auth/login'); return }
+      if (me.isManager) { router.replace('/dashboard'); return }
       router.replace('/me')   // agents (and 'none') land on the agent area which shows the right state
     }
     route()

@@ -18,7 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const { data } = await supabase.auth.getUser()
       if (!data.user) { router.push('/auth/login'); return }
       const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
-      if (me && me.role !== 'admin') { router.replace('/me'); return }
+      if (!me || !me.isManager) { router.replace('/me'); return }
       setEmail(data.user.email ?? '')
     })()
   }, [])

@@ -8,12 +8,46 @@ export interface Profile {
   created_at: string
 }
 
+export interface Organization {
+  id: string
+  name: string
+  owner_id?: string
+  created_at?: string
+}
+
+export interface Account {
+  id: string
+  org_id: string
+  name: string
+  week_start_day: number          // 0=Sunday … 6=Saturday
+  weekly_off_days: number[]        // e.g. [5,6] = Fri/Sat
+  coverage_type: string            // '24_7' | 'daytime' | 'custom'
+  created_at?: string
+}
+
 export interface Team {
   id: string
   name: string
   manager_emails: string[]
   admin_id: string
+  org_id?: string | null
+  account_id?: string | null
+  week_start_day?: number | null
+  weekly_off_days?: number[] | null
+  coverage_type?: string | null
   created_at: string
+}
+
+export const COVERAGE_LABELS: Record<string, string> = {
+  '24_7':    'تغطية 24/7',
+  'daytime': 'دوام نهاري',
+  'custom':  'مخصّص',
+}
+
+// Account week starts on Sunday=0 … Saturday=6
+export const WEEK_START_LABELS: Record<number, string> = {
+  0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء',
+  4: 'الخميس', 5: 'الجمعة', 6: 'السبت',
 }
 
 export interface Shift {
