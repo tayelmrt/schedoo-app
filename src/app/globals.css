@@ -4,25 +4,25 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  body { @apply bg-slate-50 text-slate-900 antialiased; }
+  body { @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100; }
 }
 
 @layer components {
-  .btn { @apply inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none; }
+  .btn { @apply inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none dark:focus:ring-offset-slate-900; }
   .btn-primary  { @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500; }
-  .btn-ghost    { @apply bg-transparent border border-slate-300 text-slate-700 hover:bg-slate-100 focus:ring-slate-400; }
+  .btn-ghost    { @apply bg-transparent border border-slate-300 text-slate-700 hover:bg-slate-100 focus:ring-slate-400 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800; }
   .btn-danger   { @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500; }
   .btn-success  { @apply bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500; }
   .btn-sm       { @apply px-3 py-1.5 text-xs; }
 
-  .input { @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition; }
-  .label { @apply block text-sm font-medium text-slate-700 mb-1; }
+  .input { @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500; }
+  .label { @apply block text-sm font-medium text-slate-700 mb-1 dark:text-slate-300; }
 
-  .card  { @apply bg-white rounded-xl border border-slate-200 shadow-sm; }
+  .card  { @apply bg-white rounded-xl border border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800; }
   .card-body { @apply p-6; }
 
-  .badge-ok   { @apply inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5; }
-  .badge-less { @apply inline-flex items-center gap-1 rounded-full bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5; }
-  .badge-more { @apply inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5; }
-  .badge-none { @apply inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5; }
+  .badge-ok   { @apply inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 dark:bg-emerald-900/40 dark:text-emerald-300; }
+  .badge-less { @apply inline-flex items-center gap-1 rounded-full bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 dark:bg-red-900/40 dark:text-red-300; }
+  .badge-more { @apply inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 dark:bg-blue-900/40 dark:text-blue-300; }
+  .badge-none { @apply inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 dark:bg-slate-800 dark:text-slate-400; }
 }

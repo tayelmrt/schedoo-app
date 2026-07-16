@@ -54,7 +54,7 @@ export async function GET() {
   if (MANAGER_ROLES.includes(role) && orgId) {
     if (role === 'owner' || role === 'admin') {
       const [{ data: accs }, { data: tms }] = await Promise.all([
-        svc.from('accounts').select('id, name, org_id').eq('org_id', orgId).order('created_at'),
+        svc.from('accounts').select('id, name, org_id, coverage_type, week_start_day').eq('org_id', orgId).order('created_at'),
         svc.from('teams').select('id, name, org_id, account_id, manager_emails').eq('org_id', orgId).order('created_at'),
       ])
       accounts = accs ?? []; teams = tms ?? []
@@ -62,7 +62,7 @@ export async function GET() {
       const accIds = mems.filter(m => m.role === 'account_manager' && m.account_id).map(m => m.account_id)
       if (accIds.length) {
         const [{ data: accs }, { data: tms }] = await Promise.all([
-          svc.from('accounts').select('id, name, org_id').in('id', accIds),
+          svc.from('accounts').select('id, name, org_id, coverage_type, week_start_day').in('id', accIds),
           svc.from('teams').select('id, name, org_id, account_id, manager_emails').in('account_id', accIds),
         ])
         accounts = accs ?? []; teams = tms ?? []
