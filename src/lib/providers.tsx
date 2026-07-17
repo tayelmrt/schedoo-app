@@ -434,6 +434,28 @@ const en: Dict = {
   'cset.pending':          'pending signup',
   'cset.remove':           'Remove',
   'cset.saved':            '✓ Saved!',
+
+  // team overview dashboard
+  'tov.account':          'Account',
+  'tov.agents':           'Active agents',
+  'tov.shifts':           'Shifts defined',
+  'tov.weekStatus':       'Current week',
+  'tov.submissions':      'Submissions',
+  'tov.gaps':             'Coverage gaps',
+  'tov.pendingLeaves':    'Pending leaves',
+  'tov.pendingApprovals': 'Pending approvals',
+  'tov.pendingComp':      'Comp to grant',
+  'tov.noOpenWeek':       'No open week',
+  'tov.confirmed':        'Confirmed',
+  'tov.open':             'Open',
+  'tov.attention':        'Needs your attention',
+  'tov.allGood':          'Everything looks good — nothing needs attention ✓',
+  'tov.alertApprovals':   'agents waiting for approval',
+  'tov.alertUnconfirmed': 'This week schedule is not confirmed yet',
+  'tov.alertGaps':        'coverage gaps this week',
+  'tov.alertLeaves':      'leave requests to review',
+  'tov.go':               'Open',
+  'tov.quickLinks':       'Quick links',
 }
 
 const ar: Dict = {
@@ -772,6 +794,27 @@ const ar: Dict = {
   'cset.pending':          'لسه مسجّلش',
   'cset.remove':           'إزالة',
   'cset.saved':            '✓ اتحفظ!',
+
+  'tov.account':          'الأكونت',
+  'tov.agents':           'الموظفين النشطين',
+  'tov.shifts':           'الشيفتات المعرّفة',
+  'tov.weekStatus':       'الأسبوع الحالي',
+  'tov.submissions':      'التسجيلات',
+  'tov.gaps':             'فجوات التغطية',
+  'tov.pendingLeaves':    'إجازات معلّقة',
+  'tov.pendingApprovals': 'موافقات معلّقة',
+  'tov.pendingComp':      'تعويضات معلّقة',
+  'tov.noOpenWeek':       'مفيش أسبوع مفتوح',
+  'tov.confirmed':        'مؤكّد',
+  'tov.open':             'مفتوح',
+  'tov.attention':        'محتاج انتباهك',
+  'tov.allGood':          'كله تمام — مفيش حاجة محتاجة انتباه ✓',
+  'tov.alertApprovals':   'موظفين مستنيين الموافقة',
+  'tov.alertUnconfirmed': 'جدول الأسبوع ده لسه مش مؤكّد',
+  'tov.alertGaps':        'فجوات تغطية الأسبوع ده',
+  'tov.alertLeaves':      'طلبات إجازة للمراجعة',
+  'tov.go':               'فتح',
+  'tov.quickLinks':       'روابط سريعة',
 }
 
 const DICT: Record<Lang, Dict> = { en, ar }
