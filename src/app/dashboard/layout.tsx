@@ -74,27 +74,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </div>
 
-      {/* Nav */}
+      {/* Nav — company-level items outside a team, team sections inside a team */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <Link href="/dashboard" className={navItemClass(pathname === '/dashboard' || pathname.startsWith('/dashboard/accounts'))}>
-          <Building2 className="w-4 h-4" /> {t('nav.company')}
-        </Link>
-
-        {(role === 'owner' || role === 'admin') && (
-          <Link href="/dashboard/settings" className={navItemClass(pathname === '/dashboard/settings')}>
-            <Cog className="w-4 h-4" /> {t('nav.settings')}
-          </Link>
-        )}
-
-        {teamId && (
-          <div className="pt-3 mt-2 border-t border-slate-700 space-y-1">
-            {TEAM_SECTIONS.map(({ seg, icon: Icon, key }) => (
-              <Link key={seg} href={`/dashboard/teams/${teamId}/${seg}`}
-                className={navItemClass(activeSeg === seg)}>
-                <Icon className="w-4 h-4" /> {t(key)}
+        {!teamId ? (
+          <>
+            <Link href="/dashboard" className={navItemClass(pathname === '/dashboard' || pathname.startsWith('/dashboard/accounts'))}>
+              <Building2 className="w-4 h-4" /> {t('nav.company')}
+            </Link>
+            {(role === 'owner' || role === 'admin') && (
+              <Link href="/dashboard/settings" className={navItemClass(pathname === '/dashboard/settings')}>
+                <Cog className="w-4 h-4" /> {t('nav.settings')}
               </Link>
-            ))}
-          </div>
+            )}
+          </>
+        ) : (
+          TEAM_SECTIONS.map(({ seg, icon: Icon, key }) => (
+            <Link key={seg} href={`/dashboard/teams/${teamId}/${seg}`}
+              className={navItemClass(activeSeg === seg)}>
+              <Icon className="w-4 h-4" /> {t(key)}
+            </Link>
+          ))
         )}
       </nav>
 
@@ -130,10 +129,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Mobile top bar */}
       <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-slate-900 text-white px-4 h-14 shadow">
         <button onClick={() => setOpen(true)} className="text-white"><Menu className="w-6 h-6" /></button>
-        <div className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-black text-sm">S</div>
           <span className="font-bold">Schedoo</span>
-        </div>
+        </Link>
       </header>
 
       {/* Mobile drawer */}
