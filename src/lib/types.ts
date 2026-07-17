@@ -35,8 +35,11 @@ export interface Team {
   week_start_day?: number | null
   weekly_off_days?: number[] | null
   coverage_type?: string | null
+  scheduling_mode?: 'self_service' | 'top_down' | 'hybrid'
   created_at: string
 }
+
+export const SCHED_MODES = ['self_service', 'top_down', 'hybrid'] as const
 
 export const COVERAGE_LABELS: Record<string, string> = {
   '24_7':    'تغطية 24/7',

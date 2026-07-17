@@ -48,11 +48,12 @@ export async function GET() {
     entries = data ?? []
   }
 
-  const { data: team } = await svc.from('teams').select('id, name').eq('id', agent.team_id).single()
+  const { data: team } = await svc.from('teams').select('id, name, scheduling_mode').eq('id', agent.team_id).single()
 
   return NextResponse.json({
     agent: { id: agent.id, name: agent.name },
     team,
+    schedulingMode: team?.scheduling_mode ?? 'hybrid',
     teamAgents: teamAgents ?? [],
     shifts: shifts ?? [],
     requirements: requirements ?? [],
@@ -76,6 +77,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'أسبوع غير صحيح' }, { status: 400 })
   if (week.status === 'confirmed')
     return NextResponse.json({ error: 'تم تأكيد الجدول ولا يمكن التعديل' }, { status: 400 })
+
+  // In top-down mode agents cannot self-register
+  const { data: teamMode } = await svc.from('teams').select('scheduling_mode').eq('id', agent.team_id).single()
+  if (teamMode?.scheduling_mode === 'top_down')
+    return NextResponse.json({ error: 'top-down' }, { status: 403 })
 
   // Enforce max capacity
   const { data: reqs } = await svc

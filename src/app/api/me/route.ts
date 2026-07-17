@@ -29,6 +29,13 @@ export async function GET() {
   const mems   = memberships ?? []
   const legacy = legacyTeams ?? []
 
+  // Link any memberships that were invited by email before this user signed up
+  const { data: emailMems } = await svc.from('memberships').select('*').ilike('email', email).is('user_id', null)
+  if (emailMems && emailMems.length) {
+    await svc.from('memberships').update({ user_id: user.id }).ilike('email', email).is('user_id', null)
+    for (const m of emailMems) { m.user_id = user.id; if (!mems.some(x => x.id === m.id)) mems.push(m) }
+  }
+
   // ── Determine the highest role ────────────────────────────────────────
   let role: string = 'none'
   if      (owned.length || mems.some(m => m.role === 'owner')) role = 'owner'

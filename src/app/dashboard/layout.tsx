@@ -7,7 +7,7 @@ import { createClient }           from '@/lib/supabase/client'
 import { useApp }                 from '@/lib/providers'
 import {
   Building2, Settings2, BarChart2, Users, Calendar, LineChart, Plane, Umbrella,
-  Settings, Sun, Moon, Languages, LogOut, Menu, X,
+  Settings, Sun, Moon, Languages, LogOut, Menu, X, Cog,
 } from 'lucide-react'
 
 const TEAM_SECTIONS = [
@@ -28,6 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { t, theme, toggleTheme, lang, toggleLang } = useApp()
 
   const [email, setEmail] = useState('')
+  const [role, setRole]   = useState('')
   const [open, setOpen]   = useState(false)
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
       if (!me || !me.isManager) { router.replace('/me'); return }
       setEmail(data.user.email ?? '')
+      setRole(me.role ?? '')
     })()
   }, [])
 
@@ -74,9 +76,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <Link href="/dashboard" className={navItemClass(pathname === '/dashboard')}>
+        <Link href="/dashboard" className={navItemClass(pathname === '/dashboard' || pathname.startsWith('/dashboard/accounts'))}>
           <Building2 className="w-4 h-4" /> {t('nav.company')}
         </Link>
+
+        {(role === 'owner' || role === 'admin') && (
+          <Link href="/dashboard/settings" className={navItemClass(pathname === '/dashboard/settings')}>
+            <Cog className="w-4 h-4" /> {t('nav.settings')}
+          </Link>
+        )}
 
         {teamId && (
           <div className="pt-3 mt-2 border-t border-slate-700 space-y-1">

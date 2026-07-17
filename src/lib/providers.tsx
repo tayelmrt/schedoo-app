@@ -395,6 +395,45 @@ const en: Dict = {
   'meMonth.myComp':        'My compensation days',
   'meMonth.compPending':   '⏳ Comp pending',
   'meMonth.underReview':   'Under review',
+
+  // nav / cards / settings
+  'nav.settings':          'Settings',
+  'dash.backToCompany':    '← Company',
+  'dash.openTeams':        'Open teams',
+  'dash.accountSubtitle':  'Teams in this account',
+  'dash.emptyAccountTeams':'No teams in this account yet — add one to get started',
+
+  // scheduling mode (team settings)
+  'set.schedMode':            'Scheduling mode',
+  'set.schedModeHint':        'How this team weekly schedule is produced',
+  'schedMode.self_service':   'Employee preferences',
+  'schedMode.self_service.d': 'Employees register their own shifts',
+  'schedMode.top_down':       'Management-assigned',
+  'schedMode.top_down.d':     'Management assigns; employees view only',
+  'schedMode.hybrid':         'Hybrid',
+  'schedMode.hybrid.d':       'Employees register and managers edit / fill gaps',
+
+  // agent top-down note
+  'me.topDownNote':        'Your schedule is set by management. Below is your assigned schedule.',
+
+  // company settings
+  'cset.title':            'Company Settings',
+  'cset.subtitle':         'Company profile and team members',
+  'cset.companyName':      'Company name',
+  'cset.members':          'Members & roles',
+  'cset.membersHint':      'Add people and assign their roles',
+  'cset.owner':            'Owner',
+  'cset.admin':            'Company admin',
+  'cset.account_manager':  'Account manager',
+  'cset.team_manager':     'Team manager',
+  'cset.addMember':        'Add member',
+  'cset.memberEmail':      'Member email',
+  'cset.role':             'Role',
+  'cset.scope':            'Scope',
+  'cset.noMembers':        'No members added yet',
+  'cset.pending':          'pending signup',
+  'cset.remove':           'Remove',
+  'cset.saved':            '✓ Saved!',
 }
 
 const ar: Dict = {
@@ -698,6 +737,41 @@ const ar: Dict = {
   'meMonth.myComp':        'أيام التعويض بتاعتي',
   'meMonth.compPending':   '⏳ تعويض لسه',
   'meMonth.underReview':   'قيد المراجعة',
+
+  'nav.settings':          'الإعدادات',
+  'dash.backToCompany':    '← الشركة',
+  'dash.openTeams':        'افتح الفرق',
+  'dash.accountSubtitle':  'الفرق في الأكونت ده',
+  'dash.emptyAccountTeams':'مفيش فرق في الأكونت ده لسه — أضف واحد للبداية',
+
+  'set.schedMode':            'نمط الجدولة',
+  'set.schedModeHint':        'إزاي جدول الفريق الأسبوعي بيتعمل',
+  'schedMode.self_service':   'تفضيلات الموظف',
+  'schedMode.self_service.d': 'الموظف يسجّل شيفتاته بنفسه',
+  'schedMode.top_down':       'إدارة مباشرة',
+  'schedMode.top_down.d':     'الإدارة توزّع؛ الموظف يشوف بس',
+  'schedMode.hybrid':         'مختلط',
+  'schedMode.hybrid.d':       'الموظف يسجّل والمدير يعدّل / يسدّ العجز',
+
+  'me.topDownNote':        'جدولك بتحدده الإدارة. تحت ده جدولك المعتمد.',
+
+  'cset.title':            'إعدادات الشركة',
+  'cset.subtitle':         'بيانات الشركة وأعضاء الفريق',
+  'cset.companyName':      'اسم الشركة',
+  'cset.members':          'الأعضاء والأدوار',
+  'cset.membersHint':      'أضف أشخاص وحدد أدوارهم',
+  'cset.owner':            'المالك',
+  'cset.admin':            'أدمن الشركة',
+  'cset.account_manager':  'مدير أكونت',
+  'cset.team_manager':     'مدير فريق',
+  'cset.addMember':        'إضافة عضو',
+  'cset.memberEmail':      'إيميل العضو',
+  'cset.role':             'الدور',
+  'cset.scope':            'النطاق',
+  'cset.noMembers':        'مفيش أعضاء مضافين لسه',
+  'cset.pending':          'لسه مسجّلش',
+  'cset.remove':           'إزالة',
+  'cset.saved':            '✓ اتحفظ!',
 }
 
 const DICT: Record<Lang, Dict> = { en, ar }

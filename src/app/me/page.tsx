@@ -23,6 +23,7 @@ export default function AgentHome() {
   const [agentName, setAgentName] = useState('')
   const [agentId, setAgentId]     = useState('')
   const [teamName, setTeamName]   = useState('')
+  const [schedulingMode, setSchedulingMode] = useState<string>('hybrid')
   const [teamAgents, setTeamAgents] = useState<AgentLite[]>([])
   const [shifts, setShifts]       = useState<Shift[]>([])
   const [requirements, setReqs]   = useState<any[]>([])
@@ -43,6 +44,7 @@ export default function AgentHome() {
     setAgentName(data.agent?.name ?? '')
     setAgentId(data.agent?.id ?? '')
     setTeamName(data.team?.name ?? '')
+    setSchedulingMode(data.schedulingMode ?? 'hybrid')
     setTeamAgents(data.teamAgents ?? [])
     setShifts(data.shifts ?? [])
     setReqs(data.requirements ?? [])
@@ -244,7 +246,15 @@ export default function AgentHome() {
               </div>
             </div>
 
-            {/* ── My registration ── */}
+            {/* ── Top-down: view only ── */}
+            {schedulingMode === 'top_down' && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm rounded-xl px-4 py-3">
+                {t('me.topDownNote')}
+              </div>
+            )}
+
+            {/* ── My registration (hidden in top-down mode) ── */}
+            {schedulingMode !== 'top_down' && (<>
             <div className="font-bold text-slate-700 dark:text-slate-200 mb-2 px-1">{t('me.registerMine')}</div>
             {weekDays.map((day, idx) => {
               const dayNum = idx + 1
@@ -290,6 +300,7 @@ export default function AgentHome() {
               {submitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('me.saving')}</> : <><CheckCircle2 className="w-5 h-5" /> {t('me.saveMine')}</>}
             </button>
             <p className="text-xs text-slate-400 text-center mt-2">{t('me.liveHint')}</p>
+            </>)}
           </>
         )}
       </div>

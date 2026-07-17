@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import Link                    from 'next/link'
-import { Save, Plus, X, Users, Mail, ShieldCheck } from 'lucide-react'
+import { Save, Plus, X, Users, Mail, ShieldCheck, CalendarClock } from 'lucide-react'
 import { useApp }              from '@/lib/providers'
+import { SCHED_MODES }         from '@/lib/types'
 
 export default function TeamSettingsPage({ params }: { params: { teamId: string } }) {
   const supabase = createClient()
@@ -16,6 +17,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
   const [managerEmails, setManagerEmails] = useState<string[]>([])
   const [newAdmin, setNewAdmin]   = useState('')
   const [newManager, setNewManager] = useState('')
+  const [schedMode, setSchedMode] = useState<string>('hybrid')
   const [saving, setSaving]       = useState(false)
   const [saved, setSaved]         = useState(false)
   const [loading, setLoading]     = useState(true)
@@ -28,6 +30,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
         setTeamName(data.name)
         setAdminEmails(data.admin_emails ?? [])
         setManagerEmails(data.manager_emails ?? [])
+        setSchedMode(data.scheduling_mode ?? 'hybrid')
       }
       setLoading(false)
     }
@@ -40,6 +43,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
       name:           teamName.trim(),
       admin_emails:   adminEmails,
       manager_emails: managerEmails,
+      scheduling_mode: schedMode,
     }).eq('id', params.teamId)
     setSaving(false)
     setSaved(true)
@@ -151,6 +155,34 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
               className="btn btn-ghost btn-sm">
               <Plus className="w-4 h-4" /> {t('common.add')}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Scheduling mode */}
+      <div className="card mb-6">
+        <div className="card-body">
+          <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-2">
+            <CalendarClock className="w-4 h-4 text-blue-500" /> {t('set.schedMode')}
+          </h2>
+          <p className="text-xs text-slate-400 mb-4">{t('set.schedModeHint')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {SCHED_MODES.map(mode => {
+              const active = schedMode === mode
+              return (
+                <button key={mode} type="button" onClick={() => setSchedMode(mode)}
+                  className={`text-start rounded-xl border-2 p-3 transition-all ${
+                    active
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-blue-300'
+                  }`}>
+                  <div className={`font-semibold text-sm ${active ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-200'}`}>
+                    {t(`schedMode.${mode}`)}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">{t(`schedMode.${mode}.d`)}</div>
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
