@@ -456,6 +456,32 @@ const en: Dict = {
   'tov.alertLeaves':      'leave requests to review',
   'tov.go':               'Open',
   'tov.quickLinks':       'Quick links',
+
+  // invite link (agents page)
+  'agents.inviteTitle': 'Team invite link',
+  'agents.inviteHint':  'Share this link — employees join and pick their own login. No emails to type.',
+  'agents.copy':        'Copy',
+  'agents.copied':      'Copied ✓',
+  'agents.regenerate':  'New link',
+
+  // join page
+  'join.invited':    "You're invited to join",
+  'join.at':         'at',
+  'join.yourName':   'Your name',
+  'join.namePlaceholder': 'Full name',
+  'join.google':     'Continue with Google',
+  'join.or':         'or',
+  'join.magic':      'Email me a sign-in link',
+  'join.sending':    'Sending…',
+  'join.magicSent':  'Check your email for the sign-in link ✉️',
+  'join.joining':    'Joining…',
+  'join.join':       'Join team',
+  'join.needName':   'Enter your name first',
+  'join.pending':    'You joined! Waiting for admin approval.',
+  'join.approved':   "You're in!",
+  'join.goSchedule': 'Go to my schedule',
+  'join.invalid':    'This invite link is invalid or expired.',
+  'join.loading':    'Loading…',
 }
 
 const ar: Dict = {
@@ -815,6 +841,30 @@ const ar: Dict = {
   'tov.alertLeaves':      'طلبات إجازة للمراجعة',
   'tov.go':               'فتح',
   'tov.quickLinks':       'روابط سريعة',
+
+  'agents.inviteTitle': 'رابط دعوة الفريق',
+  'agents.inviteHint':  'شارك الرابط ده — الموظفين ينضموا ويدخلوا بنفسهم، من غير ما تكتب إيميلات.',
+  'agents.copy':        'نسخ',
+  'agents.copied':      'اتنسخ ✓',
+  'agents.regenerate':  'رابط جديد',
+
+  'join.invited':    'أنت مدعو للانضمام لـ',
+  'join.at':         'في',
+  'join.yourName':   'اسمك',
+  'join.namePlaceholder': 'الاسم الكامل',
+  'join.google':     'المتابعة بجوجل',
+  'join.or':         'أو',
+  'join.magic':      'ابعتلي رابط دخول على الإيميل',
+  'join.sending':    'جاري الإرسال…',
+  'join.magicSent':  'شيك على إيميلك، بعتنالك رابط الدخول ✉️',
+  'join.joining':    'جاري الانضمام…',
+  'join.join':       'انضم للفريق',
+  'join.needName':   'اكتب اسمك الأول',
+  'join.pending':    'اتسجّلت! في انتظار موافقة الأدمين.',
+  'join.approved':   'تمام، دخلت!',
+  'join.goSchedule': 'روح لجدولي',
+  'join.invalid':    'رابط الدعوة ده غير صحيح أو منتهي.',
+  'join.loading':    'جاري التحميل…',
 }
 
 const DICT: Record<Lang, Dict> = { en, ar }

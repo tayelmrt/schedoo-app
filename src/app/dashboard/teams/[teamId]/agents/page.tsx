@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import Link                    from 'next/link'
-import { Plus, Trash2, ArrowRightLeft, X } from 'lucide-react'
+import { Plus, Trash2, ArrowRightLeft, X, Link2, Copy, RefreshCw } from 'lucide-react'
 import type { Agent }          from '@/lib/types'
 import { useApp }              from '@/lib/providers'
 
@@ -13,6 +13,8 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
   const supabase  = createClient()
   const { t } = useApp()
   const [agents, setAgents]   = useState<Agent[]>([])
+  const [shareToken, setShareToken] = useState('')
+  const [copied, setCopied]   = useState(false)
   const [otherTeams, setOtherTeams] = useState<TeamLite[]>([])
   const [loading, setLoading] = useState(true)
   const [name, setName]       = useState('')
@@ -35,7 +37,25 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
     setOtherTeams(data ?? [])
   }
 
-  useEffect(() => { fetchAgents(); fetchOtherTeams() }, [])
+  async function fetchToken() {
+    const { data } = await supabase.from('teams').select('share_token').eq('id', params.teamId).maybeSingle()
+    if (data?.share_token) setShareToken(data.share_token)
+  }
+
+  useEffect(() => { fetchAgents(); fetchOtherTeams(); fetchToken() }, [])
+
+  const inviteUrl = typeof window !== 'undefined' && shareToken ? `${location.origin}/join/${shareToken}` : ''
+
+  async function copyLink() {
+    if (!inviteUrl) return
+    try { await navigator.clipboard.writeText(inviteUrl); setCopied(true); setTimeout(() => setCopied(false), 1500) } catch {}
+  }
+
+  async function regenerate() {
+    const tok = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '').slice(0, 24)
+    await supabase.from('teams').update({ share_token: tok }).eq('id', params.teamId)
+    setShareToken(tok); setCopied(false)
+  }
 
   async function addAgent(e: React.FormEvent) {
     e.preventDefault()
@@ -83,6 +103,26 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
         {t('common.backToTeam')}
       </Link>
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">{t('agents.title')}</h1>
+
+      {/* Invite link */}
+      <div className="card mb-6">
+        <div className="card-body">
+          <h2 className="font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-blue-500" /> {t('agents.inviteTitle')}
+          </h2>
+          <p className="text-xs text-slate-400 mb-3">{t('agents.inviteHint')}</p>
+          <div className="flex gap-2 flex-wrap">
+            <input readOnly value={inviteUrl} onFocus={e => e.currentTarget.select()}
+              className="input flex-1 min-w-[220px] font-mono text-xs" />
+            <button onClick={copyLink} className="btn btn-primary btn-sm">
+              <Copy className="w-4 h-4" /> {copied ? t('agents.copied') : t('agents.copy')}
+            </button>
+            <button onClick={regenerate} className="btn btn-ghost btn-sm" title={t('agents.regenerate')}>
+              <RefreshCw className="w-4 h-4" /> {t('agents.regenerate')}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Add form */}
       <div className="card mb-6">
