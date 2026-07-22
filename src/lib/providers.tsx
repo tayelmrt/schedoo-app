@@ -370,6 +370,10 @@ const en: Dict = {
   'me.saveMine':        'Save my schedule',
   'me.savedToast':      'Your schedule was saved ✅',
   'me.liveHint':        'The schedule updates live — as people register, coverage changes. Refresh for the latest.',
+  'me.confirmedBanner': 'Your schedule is confirmed ✓',
+  'me.confirmedTitle':  'Your confirmed schedule',
+  'me.confirmedBadge':  '✓ Confirmed',
+  'me.week':            'Week',
 
   // agent leaves
   'meLeave.request':    'Request leave',
@@ -763,6 +767,10 @@ const ar: Dict = {
   'me.saveMine':        'حفظ جدولي',
   'me.savedToast':      'تم حفظ جدولك ✅',
   'me.liveHint':        'الجدول بيتحدّث لحظياً — كل ما حد يسجّل، التغطية تتغيّر. اعمل تحديث للصفحة لأحدث حالة.',
+  'me.confirmedBanner': 'جدولك اتأكّد ✓',
+  'me.confirmedTitle':  'جدولك المؤكّد',
+  'me.confirmedBadge':  '✓ مؤكّد',
+  'me.week':            'أسبوع',
 
   'meLeave.request':    'طلب إجازة',
   'meLeave.annual':     'إجازة سنوية',

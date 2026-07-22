@@ -50,6 +50,21 @@ export async function GET() {
 
   const { data: team } = await svc.from('teams').select('id, name, scheduling_mode').eq('id', agent.team_id).single()
 
+  // Confirmed weeks the employee should see (current + upcoming), with their own entries
+  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+  const { data: confirmedWeeks } = await svc.from('weeks')
+    .select('id, week_start_date, status')
+    .eq('team_id', agent.team_id).eq('status', 'confirmed')
+    .gte('week_start_date', cutoff).order('week_start_date')
+
+  let confirmedEntries: any[] = []
+  if (confirmedWeeks && confirmedWeeks.length > 0) {
+    const { data } = await svc.from('schedule_entries')
+      .select('week_id, day_of_week, shift_id')
+      .in('week_id', confirmedWeeks.map(w => w.id)).eq('agent_id', agent.id)
+    confirmedEntries = data ?? []
+  }
+
   return NextResponse.json({
     agent: { id: agent.id, name: agent.name },
     team,
@@ -59,6 +74,8 @@ export async function GET() {
     requirements: requirements ?? [],
     openWeeks: openWeeks ?? [],
     entries,
+    confirmedWeeks: confirmedWeeks ?? [],
+    confirmedEntries,
   })
 }
 

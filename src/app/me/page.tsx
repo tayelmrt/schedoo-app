@@ -29,6 +29,8 @@ export default function AgentHome() {
   const [requirements, setReqs]   = useState<any[]>([])
   const [openWeeks, setOpenWeeks] = useState<Week[]>([])
   const [entries, setEntries]     = useState<any[]>([])
+  const [confirmedWeeks, setConfirmedWeeks]     = useState<any[]>([])
+  const [confirmedEntries, setConfirmedEntries] = useState<any[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
   const [selection, setSelection] = useState<DaySelection>({})
   const [submitting, setSubmitting] = useState(false)
@@ -50,6 +52,8 @@ export default function AgentHome() {
     setReqs(data.requirements ?? [])
     setOpenWeeks(data.openWeeks ?? [])
     setEntries(data.entries ?? [])
+    setConfirmedWeeks(data.confirmedWeeks ?? [])
+    setConfirmedEntries(data.confirmedEntries ?? [])
     setStateView('ready')
   }
 
@@ -147,6 +151,46 @@ export default function AgentHome() {
       {toast && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white text-sm px-5 py-3 rounded-xl shadow-lg">{toast}</div>}
 
       <div className="max-w-5xl mx-auto p-4 pt-5">
+        {/* Confirmed schedule (read-only) + banner */}
+        {confirmedWeeks.length > 0 && (
+          <div className="mb-6">
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-2 text-sm font-semibold">
+              <CheckCircle2 className="w-5 h-5 shrink-0" /> {t('me.confirmedBanner')}
+            </div>
+            <div className="space-y-3">
+              {confirmedWeeks.map(w => {
+                const wd = Array.from({ length: 7 }, (_, i) => addDays(parseISO(w.week_start_date), i))
+                return (
+                  <div key={w.id} className="card">
+                    <div className="card-body p-3">
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t('me.week')} {weekLabel(w.week_start_date)}</span>
+                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-0.5 rounded-full shrink-0">{t('me.confirmedBadge')}</span>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1.5">
+                        {wd.map((d, i) => {
+                          const dayNum = i + 1
+                          const e = confirmedEntries.find(x => x.week_id === w.id && x.day_of_week === dayNum)
+                          const sh = e ? shifts.find(s => s.id === e.shift_id) : undefined
+                          return (
+                            <div key={dayNum} className="text-center">
+                              <div className="text-[10px] text-slate-400 mb-1">{t(`dayShort.${i}`)}<div className="text-[9px]">{format(d, 'd/M')}</div></div>
+                              <div className="rounded-lg py-1.5 text-[10px] font-semibold leading-tight border min-h-[28px] flex items-center justify-center"
+                                style={sh ? { background: hexToAlpha(sh.color_code, 0.18), color: sh.color_code, borderColor: hexToAlpha(sh.color_code, 0.35) } : {}}>
+                                {sh ? sh.name : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         <h1 className="text-xl font-bold text-slate-800 dark:text-white mb-4">{t('me.nav.register')}</h1>
         {openWeeks.length === 0 ? (
           <div className="text-center py-16"><div className="text-5xl mb-3">📅</div><p className="text-slate-500 dark:text-slate-400">{t('me.noOpenWeek')}</p></div>
