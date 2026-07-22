@@ -358,9 +358,9 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       </div>
 
       {/* Edit hint */}
-      {agents.length > 0 && week?.status !== 'confirmed' && (
-        <p className="text-xs text-slate-400 mb-2">
-          {t('sched.editHint')}
+      {agents.length > 0 && (
+        <p className={`text-xs mb-2 ${week?.status === 'confirmed' ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-slate-400'}`}>
+          {week?.status === 'confirmed' ? t('sched.overrideHint') : t('sched.editHint')}
         </p>
       )}
 
@@ -399,23 +399,8 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                   {[1,2,3,4,5,6,7].map(day => {
                     const entry = getEntry(agent.id, day)
                     const shift = getShift(entry?.shift_id ?? null)
-                    const editable = week?.status !== 'confirmed'
 
-                    // Read-only (confirmed) view
-                    if (!editable) {
-                      return (
-                        <td key={day} className="p-1.5 text-center">
-                          {shift ? (
-                            <div className="rounded-lg px-2 py-1.5 text-xs font-semibold leading-tight"
-                              style={{ background: hexToAlpha(shift.color_code,0.2), color: shift.color_code, border:`1px solid ${hexToAlpha(shift.color_code,0.4)}` }}>
-                              {shift.name}
-                            </div>
-                          ) : <div className="rounded-lg px-2 py-1.5 text-xs text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">—</div>}
-                        </td>
-                      )
-                    }
-
-                    // Editable: admin can assign / change / clear
+                    // Admin can always edit — confirmation only locks employees
                     return (
                       <td key={day} className="p-1 text-center">
                         <select
