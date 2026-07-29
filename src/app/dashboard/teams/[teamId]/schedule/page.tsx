@@ -5,7 +5,7 @@ import { createClient }     from '@/lib/supabase/client'
 import Link                 from 'next/link'
 import { addDays, format }  from 'date-fns'
 import {
-  ChevronLeft, ChevronRight, Lock, Download, RefreshCw, AlertTriangle, CalendarPlus,
+  ChevronLeft, ChevronRight, Lock, Download, RefreshCw, AlertTriangle, CalendarPlus, ArrowRightLeft,
 } from 'lucide-react'
 import {
   getWeekMonday, getWeekDays, toDateStr, hexToAlpha, isDark
@@ -44,6 +44,8 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   const [confirming, setConfirming] = useState(false)
   const [openingNext, setOpeningNext] = useState(false)
   const [toast, setToast]           = useState('')
+  const [swapMode, setSwapMode]     = useState(false)
+  const [swapSel, setSwapSel]       = useState<{ agentId: string; day: number } | null>(null)
 
   const weekDays  = getWeekDays(weekDate)
   const weekStart = toDateStr(weekDate)
@@ -184,6 +186,20 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
         return [...others, { id: crypto.randomUUID(), week_id: week.id, agent_id: agentId, day_of_week: day, shift_id: shiftId, status: 'submitted', submitted_at: new Date().toISOString() } as any]
       })
     }
+  }
+
+  // ── Swap: exchange the shifts of two cells ─────────────────────────────────
+  function onSwapClick(agentId: string, day: number) {
+    if (!swapSel) { setSwapSel({ agentId, day }); return }
+    if (swapSel.agentId === agentId && swapSel.day === day) { setSwapSel(null); return } // deselect
+    const s1 = getEntry(swapSel.agentId, swapSel.day)?.shift_id ?? ''
+    const s2 = getEntry(agentId, day)?.shift_id ?? ''
+    const a1 = swapSel
+    setSwapSel(null)
+    Promise.all([
+      assignShift(a1.agentId, a1.day, s2 || ''),
+      assignShift(agentId, day, s1 || ''),
+    ])
   }
 
   // ── Confirm week ──────────────────────────────────────────────────────────
@@ -337,6 +353,12 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
             {openingNext ? t('sched.opening') : t('sched.openNext')}
           </button>
 
+          <button onClick={() => { setSwapMode(v => !v); setSwapSel(null) }}
+            className={`btn btn-sm ${swapMode ? 'btn-primary' : 'btn-ghost'}`}>
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+            {swapMode ? t('sched.swapDone') : t('sched.swap')}
+          </button>
+
           <button onClick={exportSchedule} disabled={exporting} className="btn btn-primary btn-sm">
             <Download className="w-3.5 h-3.5" />
             {exporting ? t('sched.exporting') : t('sched.exportEmail')}
@@ -359,8 +381,8 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
 
       {/* Edit hint */}
       {agents.length > 0 && (
-        <p className={`text-xs mb-2 ${week?.status === 'confirmed' ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-slate-400'}`}>
-          {week?.status === 'confirmed' ? t('sched.overrideHint') : t('sched.editHint')}
+        <p className={`text-xs mb-2 ${swapMode ? 'text-blue-600 dark:text-blue-400 font-medium' : week?.status === 'confirmed' ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-slate-400'}`}>
+          {swapMode ? t('sched.swapHint') : week?.status === 'confirmed' ? t('sched.overrideHint') : t('sched.editHint')}
         </p>
       )}
 
@@ -399,6 +421,22 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                   {[1,2,3,4,5,6,7].map(day => {
                     const entry = getEntry(agent.id, day)
                     const shift = getShift(entry?.shift_id ?? null)
+                    const selected = swapMode && swapSel?.agentId === agent.id && swapSel?.day === day
+
+                    // Swap mode: click cells to exchange shifts
+                    if (swapMode) {
+                      return (
+                        <td key={day} className="p-1 text-center">
+                          <button onClick={() => onSwapClick(agent.id, day)}
+                            className={`w-full rounded-lg px-1.5 py-1.5 text-xs font-semibold border text-center transition-all ${selected ? 'ring-2 ring-blue-500 scale-105' : ''}`}
+                            style={shift
+                              ? { background: hexToAlpha(shift.color_code,0.2), color: shift.color_code, borderColor: hexToAlpha(shift.color_code,0.4) }
+                              : emptyCellStyle}>
+                            {shift ? shift.name : '—'}
+                          </button>
+                        </td>
+                      )
+                    }
 
                     // Admin can always edit — confirmation only locks employees
                     return (
