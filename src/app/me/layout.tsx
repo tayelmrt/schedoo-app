@@ -28,7 +28,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
       if (!me) { setView('no-agent'); return }
       if (me.isManager) { router.replace('/dashboard'); return }
-      if (me.role !== 'agent') { setView('no-agent'); return }
+      if (me.role !== 'agent') { router.replace('/onboarding'); return }
       setName(me.agent?.name ?? '')
       setTeam(me.team?.name ?? '')
       setView(me.status === 'approved' ? 'ok' : 'pending')

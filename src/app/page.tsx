@@ -14,7 +14,8 @@ export default function Home() {
 
       if (!me.authenticated) { router.replace('/auth/login'); return }
       if (me.isManager) { router.replace('/dashboard'); return }
-      router.replace('/me')   // agents (and 'none') land on the agent area which shows the right state
+      if (me.role === 'agent') { router.replace('/me'); return }
+      router.replace('/onboarding')   // brand-new user with no org → create their company
     }
     route()
   }, [])

@@ -490,6 +490,15 @@ const en: Dict = {
   'join.goSchedule': 'Go to my schedule',
   'join.invalid':    'This invite link is invalid or expired.',
   'join.loading':    'Loading…',
+
+  // onboarding (new company signup)
+  'onb.welcome':      'Welcome to Schedoo 👋',
+  'onb.subtitle':     "Let's set up your company",
+  'onb.companyName':  'Company name',
+  'onb.companyPlaceholder': 'e.g. Acme Call Center',
+  'onb.create':       'Create my company',
+  'onb.creating':     'Creating…',
+  'onb.hint':         "You'll be the owner. You can add accounts, teams and members right after.",
 }
 
 const ar: Dict = {
@@ -881,6 +890,14 @@ const ar: Dict = {
   'join.goSchedule': 'روح لجدولي',
   'join.invalid':    'رابط الدعوة ده غير صحيح أو منتهي.',
   'join.loading':    'جاري التحميل…',
+
+  'onb.welcome':      'أهلاً بيك في Schedoo 👋',
+  'onb.subtitle':     'يلا نظبّط شركتك',
+  'onb.companyName':  'اسم الشركة',
+  'onb.companyPlaceholder': 'مثال: شركة النور',
+  'onb.create':       'إنشاء شركتي',
+  'onb.creating':     'جاري الإنشاء…',
+  'onb.hint':         'هتبقى المالك. تقدر تضيف أكونتات وفرق وأعضاء بعد كده على طول.',
 }
 
 const DICT: Record<Lang, Dict> = { en, ar }
