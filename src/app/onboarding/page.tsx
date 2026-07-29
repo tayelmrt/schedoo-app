@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter }           from 'next/navigation'
 import { createClient }        from '@/lib/supabase/client'
 import { useApp }              from '@/lib/providers'
+import { getMe, clearMe }      from '@/lib/me'
 import { Loader2, Building2, LogOut } from 'lucide-react'
 
 export default function OnboardingPage() {
@@ -21,7 +22,7 @@ export default function OnboardingPage() {
       const { data } = await supabase.auth.getUser()
       if (!data.user) { router.replace('/auth/login'); return }
       // Already a manager/owner or an agent? send them to their home
-      const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
+      const me = await getMe().catch(() => null)
       if (me?.isManager) { router.replace('/dashboard'); return }
       if (me?.role === 'agent') { router.replace('/me'); return }
       setReady(true)
@@ -46,6 +47,7 @@ export default function OnboardingPage() {
     // Owner membership (keeps members list consistent)
     await supabase.from('memberships').insert({ org_id: org.id, user_id: user.id, role: 'owner' })
 
+    clearMe()
     router.replace('/dashboard')
   }
 

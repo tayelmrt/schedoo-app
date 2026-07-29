@@ -3,14 +3,14 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 }   from 'lucide-react'
+import { getMe }     from '@/lib/me'
 
 export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
     async function route() {
-      const res = await fetch('/api/me')
-      const me  = await res.json()
+      const me = await getMe().catch(() => ({ authenticated: false }))
 
       if (!me.authenticated) { router.replace('/auth/login'); return }
       if (me.isManager) { router.replace('/dashboard'); return }

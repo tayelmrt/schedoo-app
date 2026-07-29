@@ -5,6 +5,7 @@ import Link                       from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient }           from '@/lib/supabase/client'
 import { useApp }                 from '@/lib/providers'
+import { getMe }                  from '@/lib/me'
 import {
   Building2, Settings2, BarChart2, Users, Calendar, LineChart, Plane, Umbrella,
   Settings, Sun, Moon, Languages, LogOut, Menu, X, Cog,
@@ -35,7 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     (async () => {
       const { data } = await supabase.auth.getUser()
       if (!data.user) { router.push('/auth/login'); return }
-      const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
+      const me = await getMe().catch(() => null)
       if (!me || !me.isManager) { router.replace('/me'); return }
       setEmail(data.user.email ?? '')
       setRole(me.role ?? '')

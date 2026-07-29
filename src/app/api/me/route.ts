@@ -87,28 +87,30 @@ export async function GET() {
     for (const t of legacy) if (!have.has(t.id)) { teams.push(t); have.add(t.id) }
   }
 
-  // ── Agent resolution (link auth_user_id on first login) ───────────────
+  // ── Agent resolution (skip for managers — only needed for agent routing) ──
   let agent: any = null
   let status: string | null = null
   let team: any = null
 
-  const { data: agentByEmail } = await svc.from('agents').select('*').ilike('email', email).maybeSingle()
-  let agentRow = agentByEmail
-  if (!agentRow) {
-    const { data: agentByUser } = await svc.from('agents').select('*').eq('auth_user_id', user.id).maybeSingle()
-    agentRow = agentByUser
-  }
-
-  if (agentRow) {
-    if (!agentRow.auth_user_id) {
-      await svc.from('agents').update({ auth_user_id: user.id }).eq('id', agentRow.id)
-      agentRow.auth_user_id = user.id
+  if (!MANAGER_ROLES.includes(role)) {
+    const { data: agentByEmail } = await svc.from('agents').select('*').ilike('email', email).maybeSingle()
+    let agentRow = agentByEmail
+    if (!agentRow) {
+      const { data: agentByUser } = await svc.from('agents').select('*').eq('auth_user_id', user.id).maybeSingle()
+      agentRow = agentByUser
     }
-    agent  = { id: agentRow.id, name: agentRow.name, team_id: agentRow.team_id }
-    status = agentRow.status
-    const { data: t } = await svc.from('teams').select('id, name').eq('id', agentRow.team_id).maybeSingle()
-    team = t
-    if (role === 'none') role = 'agent'
+
+    if (agentRow) {
+      if (!agentRow.auth_user_id) {
+        await svc.from('agents').update({ auth_user_id: user.id }).eq('id', agentRow.id)
+        agentRow.auth_user_id = user.id
+      }
+      agent  = { id: agentRow.id, name: agentRow.name, team_id: agentRow.team_id }
+      status = agentRow.status
+      const { data: t } = await svc.from('teams').select('id, name').eq('id', agentRow.team_id).maybeSingle()
+      team = t
+      if (role === 'none') role = 'agent'
+    }
   }
 
   const isManager = MANAGER_ROLES.includes(role)

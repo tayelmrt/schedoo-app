@@ -5,6 +5,7 @@ import Link                    from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient }        from '@/lib/supabase/client'
 import { useApp }              from '@/lib/providers'
+import { getMe }               from '@/lib/me'
 import {
   CalendarCheck, CalendarDays, Plane, LogOut, Menu, X, Loader2, Clock, AlertCircle,
   Sun, Moon, Languages,
@@ -25,7 +26,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
     (async () => {
       const { data } = await supabase.auth.getUser()
       if (!data.user) { router.replace('/auth/login'); return }
-      const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
+      const me = await getMe().catch(() => null)
       if (!me) { setView('no-agent'); return }
       if (me.isManager) { router.replace('/dashboard'); return }
       if (me.role !== 'agent') { router.replace('/onboarding'); return }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import { useApp }              from '@/lib/providers'
+import { getMe, clearMe }      from '@/lib/me'
 import Link                    from 'next/link'
 import { Plus, Users, ChevronLeft, FolderKanban, Clock } from 'lucide-react'
 import type { Account, Team, Organization } from '@/lib/types'
@@ -24,7 +25,7 @@ export default function AccountPage({ params }: { params: { accountId: string } 
   const [adminEmails, setAdminEmails]     = useState('')
 
   async function load() {
-    const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
+    const me = await getMe().catch(() => null)
     if (me) {
       setOrg(me.org ?? null)
       setAccount((me.accounts ?? []).find((a: Account) => a.id === params.accountId) ?? null)
@@ -53,7 +54,7 @@ export default function AccountPage({ params }: { params: { accountId: string } 
     if (error) { setFormError(error.message); setSaving(false); return }
     setTeamName(''); setManagerEmails(''); setAdminEmails('')
     setShowTeam(false); setSaving(false)
-    load()
+    clearMe(); load()
   }
 
   return (

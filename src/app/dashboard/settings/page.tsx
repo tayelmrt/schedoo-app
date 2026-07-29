@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import { useApp }              from '@/lib/providers'
+import { getMe, clearMe }      from '@/lib/me'
 import { Save, Building2, Users, Plus, X, ShieldCheck } from 'lucide-react'
 import type { Account, Team, Organization } from '@/lib/types'
 
@@ -35,7 +36,7 @@ export default function CompanySettingsPage() {
   const [addError, setAddError] = useState('')
 
   async function load() {
-    const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
+    const me = await getMe().catch(() => null)
     if (me?.org) {
       setOrg(me.org); setOrgName(me.org.name)
       setAccounts(me.accounts ?? []); setTeams(me.teams ?? [])
@@ -50,6 +51,7 @@ export default function CompanySettingsPage() {
     if (!org) return
     setSavingName(true)
     await supabase.from('organizations').update({ name: orgName.trim() }).eq('id', org.id)
+    clearMe()
     setSavingName(false); setSavedName(true); setTimeout(() => setSavedName(false), 2000)
   }
 

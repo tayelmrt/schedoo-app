@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import { useApp }              from '@/lib/providers'
+import { getMe, clearMe }      from '@/lib/me'
 import Link                    from 'next/link'
 import { Plus, Building2, FolderKanban, Clock, ChevronLeft, Users } from 'lucide-react'
 import type { Account, Team, Organization } from '@/lib/types'
@@ -25,7 +26,7 @@ export default function DashboardPage() {
   const [accWeekStart, setAccWeekStart] = useState(0)
 
   async function load() {
-    const me = await fetch('/api/me').then(r => r.json()).catch(() => null)
+    const me = await getMe().catch(() => null)
     if (me) {
       setOrg(me.org ?? null)
       setAccounts(me.accounts ?? [])
@@ -49,7 +50,7 @@ export default function DashboardPage() {
     if (error) { setFormError(error.message); setSaving(false); return }
     setAccName(''); setAccCoverage('custom'); setAccWeekStart(0)
     setShowAccount(false); setSaving(false)
-    load()
+    clearMe(); load()
   }
 
   const teamCount = (accountId: string) => teams.filter(t => t.account_id === accountId).length
