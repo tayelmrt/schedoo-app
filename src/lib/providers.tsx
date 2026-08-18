@@ -408,6 +408,9 @@ const en: Dict = {
 
   // nav / cards / settings
   'nav.settings':          'Settings',
+  'nav.account':           'Account',
+  'nav.accountSettings':   'Account settings',
+  'aset.title':            'Account settings',
   'dash.backToCompany':    '← Company',
   'dash.openTeams':        'Open teams',
   'dash.accountSubtitle':  'Teams in this account',
@@ -825,6 +828,9 @@ const ar: Dict = {
   'meMonth.underReview':   'قيد المراجعة',
 
   'nav.settings':          'الإعدادات',
+  'nav.account':           'الأكونت',
+  'nav.accountSettings':   'إعدادات الأكونت',
+  'aset.title':            'إعدادات الأكونت',
   'dash.backToCompany':    '← الشركة',
   'dash.openTeams':        'افتح الفرق',
   'dash.accountSubtitle':  'الفرق في الأكونت ده',

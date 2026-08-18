@@ -8,7 +8,7 @@ import { useApp }                 from '@/lib/providers'
 import { getMe }                  from '@/lib/me'
 import {
   Building2, Settings2, BarChart2, Users, Calendar, LineChart, Plane, Umbrella,
-  Settings, Sun, Moon, Languages, LogOut, Menu, X, Cog,
+  Settings, Sun, Moon, Languages, LogOut, Menu, X, Cog, FolderKanban,
 } from 'lucide-react'
 
 const TEAM_SECTIONS = [
@@ -30,6 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const [email, setEmail] = useState('')
   const [role, setRole]   = useState('')
+  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
   const [open, setOpen]   = useState(false)
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!me || !me.isManager) { router.replace('/me'); return }
       setEmail(data.user.email ?? '')
       setRole(me.role ?? '')
+      setAccounts(me.accounts ?? [])
     })()
   }, [])
 
@@ -54,6 +56,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const teamMatch = pathname.match(/^\/dashboard\/teams\/([^/]+)(?:\/([^/]+))?/)
   const teamId    = teamMatch?.[1]
   const activeSeg = teamMatch?.[2] ?? ''
+
+  // Detect account context: /dashboard/accounts/<id>/<section?>
+  const accMatch    = pathname.match(/^\/dashboard\/accounts\/([^/]+)(?:\/([^/]+))?/)
+  const accountId   = accMatch?.[1]
+  const accountSeg  = accMatch?.[2] ?? ''
+  const accountName = accounts.find(a => a.id === accountId)?.name ?? t('nav.account')
 
   const navItemClass = (active: boolean) =>
     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -75,11 +83,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </div>
 
-      {/* Nav — company-level items outside a team, team sections inside a team */}
+      {/* Nav — context-aware: team sections / account items / company items */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {!teamId ? (
+        {teamId ? (
+          TEAM_SECTIONS.map(({ seg, icon: Icon, key }) => (
+            <Link key={seg} href={`/dashboard/teams/${teamId}/${seg}`}
+              className={navItemClass(activeSeg === seg)}>
+              <Icon className="w-4 h-4" /> {t(key)}
+            </Link>
+          ))
+        ) : accountId ? (
           <>
-            <Link href="/dashboard" className={navItemClass(pathname === '/dashboard' || pathname.startsWith('/dashboard/accounts'))}>
+            <div className="px-3 pb-2 text-xs font-semibold text-slate-500 truncate">{accountName}</div>
+            <Link href={`/dashboard/accounts/${accountId}`} className={navItemClass(accountSeg === '')}>
+              <FolderKanban className="w-4 h-4" /> {t('nav.account')}
+            </Link>
+            <Link href={`/dashboard/accounts/${accountId}/settings`} className={navItemClass(accountSeg === 'settings')}>
+              <Cog className="w-4 h-4" /> {t('nav.accountSettings')}
+            </Link>
+            <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors mt-2 border-t border-slate-700 pt-3">
+              <Building2 className="w-4 h-4" /> {t('nav.company')}
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link href="/dashboard" className={navItemClass(pathname === '/dashboard')}>
               <Building2 className="w-4 h-4" /> {t('nav.company')}
             </Link>
             {(role === 'owner' || role === 'admin') && (
@@ -88,13 +116,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )}
           </>
-        ) : (
-          TEAM_SECTIONS.map(({ seg, icon: Icon, key }) => (
-            <Link key={seg} href={`/dashboard/teams/${teamId}/${seg}`}
-              className={navItemClass(activeSeg === seg)}>
-              <Icon className="w-4 h-4" /> {t(key)}
-            </Link>
-          ))
         )}
       </nav>
 

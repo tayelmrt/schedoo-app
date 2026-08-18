@@ -5,17 +5,12 @@ import { createClient }        from '@/lib/supabase/client'
 import { useApp }              from '@/lib/providers'
 import { getMe, clearMe }      from '@/lib/me'
 import Link                    from 'next/link'
-import { useRouter }           from 'next/navigation'
-import { Plus, Users, ChevronLeft, FolderKanban, Clock, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, Users, ChevronLeft, FolderKanban, Clock, Settings } from 'lucide-react'
 import type { Account, Team, Organization } from '@/lib/types'
 
 export default function AccountPage({ params }: { params: { accountId: string } }) {
   const supabase = createClient()
-  const router   = useRouter()
   const { t } = useApp()
-  const [role, setRole]             = useState('')
-  const [confirmDel, setConfirmDel] = useState(false)
-  const [deleting, setDeleting]     = useState(false)
 
   const [org, setOrg]         = useState<Organization | null>(null)
   const [account, setAccount] = useState<Account | null>(null)
@@ -33,7 +28,6 @@ export default function AccountPage({ params }: { params: { accountId: string } 
     const me = await getMe().catch(() => null)
     if (me) {
       setOrg(me.org ?? null)
-      setRole(me.role ?? '')
       setAccount((me.accounts ?? []).find((a: Account) => a.id === params.accountId) ?? null)
       setTeams((me.teams ?? []).filter((tm: Team) => tm.account_id === params.accountId))
     }
@@ -63,14 +57,6 @@ export default function AccountPage({ params }: { params: { accountId: string } 
     clearMe(); load()
   }
 
-  async function deleteAccount() {
-    setDeleting(true)
-    const { error } = await supabase.from('accounts').delete().eq('id', params.accountId)
-    if (error) { setDeleting(false); alert(error.message); return }
-    clearMe()
-    router.replace('/dashboard')
-  }
-
   return (
     <div className="p-8">
       <Link href="/dashboard" className="text-sm text-slate-400 hover:text-blue-600 mb-2 inline-block">
@@ -94,9 +80,14 @@ export default function AccountPage({ params }: { params: { accountId: string } 
             )}
           </div>
         </div>
-        <button onClick={() => { setShowTeam(true); setFormError('') }} className="btn btn-primary shrink-0">
-          <Plus className="w-4 h-4" /> {t('dash.addTeam')}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href={`/dashboard/accounts/${params.accountId}/settings`} className="btn btn-ghost" title={t('nav.accountSettings')}>
+            <Settings className="w-4 h-4" />
+          </Link>
+          <button onClick={() => { setShowTeam(true); setFormError('') }} className="btn btn-primary">
+            <Plus className="w-4 h-4" /> {t('dash.addTeam')}
+          </button>
+        </div>
       </div>
 
       {/* New team form */}
@@ -159,28 +150,6 @@ export default function AccountPage({ params }: { params: { accountId: string } 
               </div>
             </Link>
           ))}
-        </div>
-      )}
-
-      {/* Danger zone (owner/admin only) */}
-      {(role === 'owner' || role === 'admin') && !loading && account && (
-        <div className="mt-8 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10 p-4 max-w-lg">
-          <h2 className="font-semibold text-red-700 dark:text-red-400 mb-1 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> {t('danger.zone')}
-          </h2>
-          <p className="text-xs text-red-500/80 dark:text-red-400/70 mb-3">{t('danger.deleteAccountHint')}</p>
-          {!confirmDel ? (
-            <button onClick={() => setConfirmDel(true)} className="btn btn-danger btn-sm">
-              <Trash2 className="w-4 h-4" /> {t('danger.deleteAccount')}
-            </button>
-          ) : (
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={deleteAccount} disabled={deleting} className="btn btn-danger btn-sm">
-                {deleting ? t('danger.deleting') : t('danger.confirm')}
-              </button>
-              <button onClick={() => setConfirmDel(false)} className="btn btn-ghost btn-sm">{t('common.cancel')}</button>
-            </div>
-          )}
         </div>
       )}
     </div>
