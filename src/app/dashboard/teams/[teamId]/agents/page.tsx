@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import Link                    from 'next/link'
-import { Plus, Trash2, ArrowRightLeft, X, Link2, Copy, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, ArrowRightLeft, X, Link2, Copy, RefreshCw, KeyRound } from 'lucide-react'
 import type { Agent }          from '@/lib/types'
 import { useApp }              from '@/lib/providers'
 
@@ -23,6 +23,24 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
   const [moveAgent, setMoveAgent] = useState<Agent | null>(null)
   const [moveTarget, setMoveTarget] = useState('')
   const [moving, setMoving]   = useState(false)
+  const [resetAgent, setResetAgent] = useState<Agent | null>(null)
+  const [newPass, setNewPass] = useState('')
+  const [resetting, setResetting] = useState(false)
+  const [resetDone, setResetDone] = useState(false)
+  const [resetErr, setResetErr]   = useState('')
+
+  async function doReset() {
+    if (!resetAgent || newPass.length < 6) return
+    setResetting(true); setResetErr('')
+    const res = await fetch('/api/agents/reset-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentId: resetAgent.id, password: newPass }),
+    })
+    const d = await res.json()
+    setResetting(false)
+    if (d.error) { setResetErr(d.error === 'no-account' ? t('agents.noAccountReset') : d.error); return }
+    setResetDone(true)
+  }
 
   async function fetchAgents() {
     const { data } = await supabase.from('agents')
@@ -190,6 +208,11 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
                           className="text-xs text-slate-400 hover:text-amber-600 underline mx-2">{t('agents.revoke')}</button>
                       )}
                       <div className="flex items-center justify-end gap-3">
+                        <button onClick={() => { setResetAgent(a); setNewPass(''); setResetDone(false); setResetErr('') }}
+                          title={t('agents.resetPw')}
+                          className="text-slate-400 hover:text-blue-600 transition-colors">
+                          <KeyRound className="w-4 h-4" />
+                        </button>
                         <button onClick={() => { setMoveAgent(a); setMoveTarget('') }}
                           title={t('agents.moveTo')}
                           className="text-slate-400 hover:text-blue-600 transition-colors flex items-center gap-1 text-xs font-medium">
@@ -245,6 +268,43 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
                   <button onClick={() => setMoveAgent(null)} className="btn btn-ghost">{t('common.cancel')}</button>
                   <button onClick={doMove} disabled={!moveTarget || moving} className="btn btn-primary">
                     {moving ? t('agents.moving') : t('agents.moveBtn')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Reset password modal */}
+      {resetAgent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setResetAgent(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-blue-500" /> {t('agents.resetTitle')} {resetAgent.name}
+              </h3>
+              <button onClick={() => setResetAgent(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {resetDone ? (
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-sm rounded-lg px-4 py-3">
+                {t('agents.resetDone')}
+                <div className="mt-2 font-mono text-base font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 rounded px-3 py-2 text-center">{newPass}</div>
+              </div>
+            ) : (
+              <>
+                {resetErr && <div className="mb-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">{resetErr}</div>}
+                <label className="label">{t('agents.newPassword')}</label>
+                <input className="input mb-4" type="text" value={newPass} onChange={e => setNewPass(e.target.value)}
+                  placeholder="••••••" />
+                <div className="flex gap-3 justify-end">
+                  <button onClick={() => setResetAgent(null)} className="btn btn-ghost">{t('common.cancel')}</button>
+                  <button onClick={doReset} disabled={newPass.length < 6 || resetting} className="btn btn-primary">
+                    {resetting ? t('agents.resetting') : t('agents.setPassword')}
                   </button>
                 </div>
               </>

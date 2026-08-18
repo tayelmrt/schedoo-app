@@ -230,6 +230,13 @@ const en: Dict = {
   'agents.choose':         '— choose —',
   'agents.moving':         'Moving…',
   'agents.moveBtn':        'Move Agent',
+  'agents.resetPw':        'Reset password',
+  'agents.resetTitle':     'New password for',
+  'agents.newPassword':    'New password (min 6 chars)',
+  'agents.setPassword':    'Set password',
+  'agents.resetting':      'Setting…',
+  'agents.resetDone':      'Done ✓ — give them this password to sign in.',
+  'agents.noAccountReset': "This person hasn't created an account yet.",
 
   // leaves
   'leaves.subtitle':      'Set each employee balance and review leave requests',
@@ -660,6 +667,13 @@ const ar: Dict = {
   'agents.choose':         '— اختر —',
   'agents.moving':         'جاري النقل…',
   'agents.moveBtn':        'نقل الموظف',
+  'agents.resetPw':        'إعادة تعيين الباسورد',
+  'agents.resetTitle':     'باسورد جديد لـ',
+  'agents.newPassword':    'الباسورد الجديد (6 حروف على الأقل)',
+  'agents.setPassword':    'تعيين الباسورد',
+  'agents.resetting':      'جاري التعيين…',
+  'agents.resetDone':      'تم ✓ — سلّم الموظف الباسورد ده عشان يدخل بيه.',
+  'agents.noAccountReset': 'الشخص ده لسه معملش حساب.',
 
   'leaves.subtitle':      'حدّد رصيد كل موظف وراجع طلبات الإجازة',
   'leaves.pending':       'طلبات بانتظار المراجعة',
