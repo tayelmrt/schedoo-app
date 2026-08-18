@@ -501,6 +501,15 @@ const en: Dict = {
   'onb.create':       'Create my company',
   'onb.creating':     'Creating…',
   'onb.hint':         "You'll be the owner. You can add accounts, teams and members right after.",
+
+  // danger zone (delete)
+  'danger.zone':              'Danger zone',
+  'danger.deleteTeam':        'Delete team',
+  'danger.deleteTeamHint':    'Permanently deletes this team and all its shifts, agents, schedules and data. This cannot be undone.',
+  'danger.deleteAccount':     'Delete account',
+  'danger.deleteAccountHint': 'Permanently deletes this account and ALL its teams and their data. This cannot be undone.',
+  'danger.confirm':           'Yes, delete permanently',
+  'danger.deleting':          'Deleting…',
 }
 
 const ar: Dict = {
@@ -902,6 +911,14 @@ const ar: Dict = {
   'onb.create':       'إنشاء شركتي',
   'onb.creating':     'جاري الإنشاء…',
   'onb.hint':         'هتبقى المالك. تقدر تضيف أكونتات وفرق وأعضاء بعد كده على طول.',
+
+  'danger.zone':              'منطقة الخطر',
+  'danger.deleteTeam':        'حذف الفريق',
+  'danger.deleteTeamHint':    'حذف نهائي للفريق وكل شيفتاته وموظفيه وجداوله وبياناته. مش هينفع يترجع.',
+  'danger.deleteAccount':     'حذف الأكونت',
+  'danger.deleteAccountHint': 'حذف نهائي للأكونت وكل فرقه وبياناتهم. مش هينفع يترجع.',
+  'danger.confirm':           'أيوة، احذف نهائي',
+  'danger.deleting':          'جاري الحذف…',
 }
 
 const DICT: Record<Lang, Dict> = { en, ar }

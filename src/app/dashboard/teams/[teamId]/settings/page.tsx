@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
+import { useRouter }           from 'next/navigation'
 import Link                    from 'next/link'
-import { Save, Plus, X, Users, Mail, ShieldCheck, CalendarClock } from 'lucide-react'
+import { Save, Plus, X, Users, Mail, ShieldCheck, CalendarClock, Trash2, AlertTriangle } from 'lucide-react'
 import { useApp }              from '@/lib/providers'
+import { clearMe }             from '@/lib/me'
 import { SCHED_MODES }         from '@/lib/types'
 
 export default function TeamSettingsPage({ params }: { params: { teamId: string } }) {
   const supabase = createClient()
+  const router   = useRouter()
   const { t } = useApp()
+  const [confirmDel, setConfirmDel] = useState(false)
+  const [deleting, setDeleting]     = useState(false)
 
   const [team, setTeam]           = useState<any>(null)
   const [teamName, setTeamName]   = useState('')
@@ -62,6 +67,14 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
 
   function removeEmail(list: string[], setList: (v: string[]) => void, email: string) {
     setList(list.filter(e => e !== email))
+  }
+
+  async function deleteTeam() {
+    setDeleting(true)
+    const { error } = await supabase.from('teams').delete().eq('id', params.teamId)
+    if (error) { setDeleting(false); alert(error.message); return }
+    clearMe()
+    router.replace('/dashboard')
   }
 
   if (loading) return <div className="p-8 text-slate-400 text-sm">{t('common.loading')}</div>
@@ -208,6 +221,26 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
         <Save className="w-4 h-4" />
         {saving ? t('req.saving') : saved ? t('common.saved') : t('set.saveChanges')}
       </button>
+
+      {/* Danger zone */}
+      <div className="mt-8 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10 p-4">
+        <h2 className="font-semibold text-red-700 dark:text-red-400 mb-1 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" /> {t('danger.zone')}
+        </h2>
+        <p className="text-xs text-red-500/80 dark:text-red-400/70 mb-3">{t('danger.deleteTeamHint')}</p>
+        {!confirmDel ? (
+          <button onClick={() => setConfirmDel(true)} className="btn btn-danger btn-sm">
+            <Trash2 className="w-4 h-4" /> {t('danger.deleteTeam')}
+          </button>
+        ) : (
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={deleteTeam} disabled={deleting} className="btn btn-danger btn-sm">
+              {deleting ? t('danger.deleting') : t('danger.confirm')}
+            </button>
+            <button onClick={() => setConfirmDel(false)} className="btn btn-ghost btn-sm">{t('common.cancel')}</button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
