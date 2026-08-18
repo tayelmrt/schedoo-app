@@ -29,8 +29,10 @@ export async function POST(req: NextRequest) {
   const svc = createServiceClient()
 
   const { data: team } = await svc.from('teams')
-    .select('id').eq('share_token', token).maybeSingle()
+    .select('id, auto_approve').eq('share_token', token).maybeSingle()
   if (!team) return NextResponse.json({ error: 'invalid' }, { status: 404 })
+
+  const joinStatus = team.auto_approve === false ? 'pending' : 'approved'
 
   const email = (user.email ?? '').toLowerCase()
 
@@ -57,9 +59,9 @@ export async function POST(req: NextRequest) {
     name:          String(name).trim(),
     email:         email || null,
     auth_user_id:  user.id,
-    status:        'pending',
+    status:        joinStatus,
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ status: 'pending' })
+  return NextResponse.json({ status: joinStatus })
 }

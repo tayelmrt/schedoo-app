@@ -18,6 +18,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
   const [newAdmin, setNewAdmin]   = useState('')
   const [newManager, setNewManager] = useState('')
   const [schedMode, setSchedMode] = useState<string>('hybrid')
+  const [autoApprove, setAutoApprove] = useState(true)
   const [saving, setSaving]       = useState(false)
   const [saved, setSaved]         = useState(false)
   const [loading, setLoading]     = useState(true)
@@ -31,6 +32,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
         setAdminEmails(data.admin_emails ?? [])
         setManagerEmails(data.manager_emails ?? [])
         setSchedMode(data.scheduling_mode ?? 'hybrid')
+        setAutoApprove(data.auto_approve ?? true)
       }
       setLoading(false)
     }
@@ -44,6 +46,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
       admin_emails:   adminEmails,
       manager_emails: managerEmails,
       scheduling_mode: schedMode,
+      auto_approve: autoApprove,
     }).eq('id', params.teamId)
     setSaving(false)
     setSaved(true)
@@ -184,6 +187,20 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
               )
             })}
           </div>
+        </div>
+      </div>
+
+      {/* Auto-approve via invite link */}
+      <div className="card mb-6">
+        <div className="card-body">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" className="mt-1 w-4 h-4 rounded" checked={autoApprove}
+              onChange={e => setAutoApprove(e.target.checked)} />
+            <span>
+              <span className="font-semibold text-slate-700 dark:text-slate-200 text-sm">{t('set.autoApprove')}</span>
+              <span className="block text-xs text-slate-400 mt-0.5">{t('set.autoApproveHint')}</span>
+            </span>
+          </label>
         </div>
       </div>
 

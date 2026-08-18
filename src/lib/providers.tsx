@@ -195,6 +195,8 @@ const en: Dict = {
   'set.managerEmails': 'Manager Emails',
   'set.managerHint':   'They receive the final schedule by email',
   'set.noManagers':    'No managers yet',
+  'set.autoApprove':   'Auto-approve via invite link',
+  'set.autoApproveHint':'People who open the invite link and register join immediately — no manual approval.',
   'set.saveChanges':   'Save Changes',
 
   'common.cancel': 'Cancel',
@@ -610,6 +612,8 @@ const ar: Dict = {
   'set.managerEmails': 'إيميلات المانجرز',
   'set.managerHint':   'هيستلموا الجدول النهائي على إيميلاتهم',
   'set.noManagers':    'مفيش مانجرز لسه',
+  'set.autoApprove':   'قبول تلقائي عبر رابط الدعوة',
+  'set.autoApproveHint':'اللي يفتح رابط الدعوة ويسجّل يدخل على طول — من غير موافقة يدوية.',
   'set.saveChanges':   'حفظ التغييرات',
 
   'common.cancel': 'إلغاء',
