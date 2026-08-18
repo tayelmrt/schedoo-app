@@ -20,7 +20,9 @@ export default function JoinPage({ params }: { params: { token: string } }) {
   const [orgName, setOrgName]   = useState('')
   const [name, setName]   = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [busy, setBusy]   = useState(false)
+  const [err, setErr]     = useState('')
   const [magicSent, setMagicSent] = useState(false)
 
   const redirectTo = typeof window !== 'undefined'
@@ -60,14 +62,20 @@ export default function JoinPage({ params }: { params: { token: string } }) {
     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } })
   }
 
-  async function magicLink() {
-    if (!name.trim()) return
-    if (!email.includes('@')) return
-    setBusy(true)
+  // Email + password: sign in if the account exists, otherwise create it, then join.
+  async function emailJoin() {
+    if (!name.trim() || !email.includes('@') || password.length < 6) return
+    setBusy(true); setErr('')
     localStorage.setItem(NAME_KEY, name.trim())
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: redirectTo } })
+    let res = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    if (res.error) {
+      const up = await supabase.auth.signUp({ email: email.trim(), password })
+      res = up as any
+    }
     setBusy(false)
-    if (!error) setMagicSent(true)
+    if (res.error) { setErr(res.error.message); return }
+    if (res.data?.session) { await joinNow(name.trim()) }
+    else { setMagicSent(true) }   // email confirmation still required in Supabase
   }
 
   const authedNeedsName = view === 'name'
@@ -131,10 +139,13 @@ export default function JoinPage({ params }: { params: { token: string } }) {
               <span className="text-xs text-slate-400">{t('join.or')}</span>
               <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
             </div>
+            {err && <div className="mb-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">{err}</div>}
             <input className="input mb-2" type="email" placeholder="you@example.com"
               value={email} onChange={e => setEmail(e.target.value)} />
-            <button onClick={magicLink} disabled={!name.trim() || !email.includes('@') || busy} className="btn btn-primary w-full">
-              <Mail className="w-4 h-4" /> {busy ? t('join.sending') : t('join.magic')}
+            <input className="input mb-2" type="password" placeholder={t('join.password')}
+              value={password} onChange={e => setPassword(e.target.value)} />
+            <button onClick={emailJoin} disabled={!name.trim() || !email.includes('@') || password.length < 6 || busy} className="btn btn-primary w-full">
+              <Mail className="w-4 h-4" /> {busy ? t('join.joining') : t('join.continueEmail')}
             </button>
             {!name.trim() && <p className="text-xs text-slate-400 text-center mt-2">{t('join.needName')}</p>}
           </>
