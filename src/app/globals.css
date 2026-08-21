@@ -26,3 +26,89 @@
   .badge-more { @apply inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 dark:bg-blue-900/40 dark:text-blue-300; }
   .badge-none { @apply inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold px-2 py-0.5 dark:bg-slate-800 dark:text-slate-400; }
 }
+
+/* ============================================================
+   Landing page motion & effects
+   ============================================================ */
+
+/* Scroll-reveal: elements start hidden, fade + rise into view */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal.in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .anim-float, .anim-float-slow, .anim-blob, .anim-spin-slow,
+  .anim-gradient, .anim-shimmer, .anim-pulse-glow, .anim-grid { animation: none !important; }
+}
+
+/* Floating (hero visual, cards) */
+@keyframes floatY {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-14px); }
+}
+.anim-float      { animation: floatY 6s ease-in-out infinite; }
+.anim-float-slow { animation: floatY 9s ease-in-out infinite; }
+
+/* Big soft background blobs */
+@keyframes blob {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%     { transform: translate(30px,-40px) scale(1.1); }
+  66%     { transform: translate(-25px,25px) scale(.95); }
+}
+.anim-blob { animation: blob 18s ease-in-out infinite; }
+
+/* Animated gradient text/fill */
+@keyframes gradientShift {
+  0%,100% { background-position: 0% 50%; }
+  50%     { background-position: 100% 50%; }
+}
+.anim-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 6s ease infinite;
+}
+.text-gradient {
+  background-image: linear-gradient(120deg,#2563eb,#7c3aed,#06b6d4,#2563eb);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* Shimmer sweep across a surface */
+@keyframes shimmer {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+.anim-shimmer { animation: shimmer 3.5s ease-in-out infinite; }
+
+/* Pulsing glow behind CTAs */
+@keyframes pulseGlow {
+  0%,100% { opacity:.5; transform: scale(.96); }
+  50%     { opacity:.9; transform: scale(1.04); }
+}
+.anim-pulse-glow { animation: pulseGlow 4s ease-in-out infinite; }
+
+/* Slow spin for orbital rings */
+@keyframes spinSlow { to { transform: rotate(360deg); } }
+.anim-spin-slow { animation: spinSlow 24s linear infinite; }
+
+/* Panning grid background */
+@keyframes gridPan {
+  0%   { background-position: 0 0; }
+  100% { background-position: 40px 40px; }
+}
+.anim-grid { animation: gridPan 8s linear infinite; }
+
+/* Entrance for hero content (no observer needed — plays on load) */
+@keyframes riseIn {
+  from { opacity:0; transform: translateY(24px); }
+  to   { opacity:1; transform: none; }
+}
+.anim-rise { animation: riseIn .8s cubic-bezier(.16,1,.3,1) both; }

@@ -9,9 +9,10 @@ export async function middleware(req: NextRequest) {
 
   const { pathname } = req.nextUrl
 
-  // Public routes that don't need auth
+  // Public routes that don't need auth. '/' is the marketing landing page —
+  // matched exactly (startsWith('/') would match everything).
   const publicPaths = ['/auth/login', '/auth/callback', '/join']
-  const isPublic = publicPaths.some(p => pathname.startsWith(p))
+  const isPublic = pathname === '/' || publicPaths.some(p => pathname.startsWith(p))
 
   if (!session && !isPublic) {
     return NextResponse.redirect(new URL('/auth/login', req.url))
