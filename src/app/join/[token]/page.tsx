@@ -62,19 +62,22 @@ export default function JoinPage({ params }: { params: { token: string } }) {
     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } })
   }
 
-  // Email + password: sign in if the account exists, otherwise create it, then join.
+  // Email + password: sign in if the account already exists, otherwise create it, then join.
   async function emailJoin() {
     if (!name.trim() || !email.includes('@') || password.length < 6) return
     setBusy(true); setErr('')
     localStorage.setItem(NAME_KEY, name.trim())
-    let res = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    if (res.error) {
-      const up = await supabase.auth.signUp({ email: email.trim(), password })
-      res = up as any
-    }
+    // Existing account → sign in.
+    const si = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    if (!si.error && si.data.session) { setBusy(false); await joinNow(name.trim()); return }
+    // Otherwise try to create the account.
+    const up = await supabase.auth.signUp({ email: email.trim(), password })
     setBusy(false)
-    if (res.error) { setErr(res.error.message); return }
-    if (res.data?.session) { await joinNow(name.trim()) }
+    if (up.error) {
+      setErr(/registered|exists|already/i.test(up.error.message) ? t('join.emailExists') : up.error.message)
+      return
+    }
+    if (up.data.session) { await joinNow(name.trim()) }
     else { setMagicSent(true) }   // email confirmation still required in Supabase
   }
 
@@ -136,7 +139,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
             </button>
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
-              <span className="text-xs text-slate-400">{t('join.or')}</span>
+              <span className="text-xs text-slate-400">{t('join.orEmail')}</span>
               <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
             </div>
             {err && <div className="mb-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">{err}</div>}
@@ -147,7 +150,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
             <button onClick={emailJoin} disabled={!name.trim() || !email.includes('@') || password.length < 6 || busy} className="btn btn-primary w-full">
               <Mail className="w-4 h-4" /> {busy ? t('join.joining') : t('join.continueEmail')}
             </button>
-            {!name.trim() && <p className="text-xs text-slate-400 text-center mt-2">{t('join.needName')}</p>}
+            <p className="text-[11px] text-slate-400 text-center mt-2">{t('join.haveAccount')}</p>
           </>
         )}
       </>
