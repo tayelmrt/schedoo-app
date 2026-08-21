@@ -185,6 +185,7 @@ const en: Dict = {
   'req.addFirst': 'Add shifts first',
   'req.minTitle': 'Minimum',
   'req.maxTitle': 'Maximum (empty = no limit)',
+  'req.saveFailed': 'Save failed —',
 
   // team settings
   'set.title':         'Team Settings',
@@ -629,6 +630,7 @@ const ar: Dict = {
   'req.addFirst': 'أضف شيفتات الأول',
   'req.minTitle': 'الحد الأدنى',
   'req.maxTitle': 'الحد الأقصى (فاضي = بدون حد)',
+  'req.saveFailed': 'فشل الحفظ —',
 
   'set.title':         'إعدادات الفريق',
   'set.teamName':      'اسم الفريق',

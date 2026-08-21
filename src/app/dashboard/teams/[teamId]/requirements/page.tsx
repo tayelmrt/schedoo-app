@@ -20,33 +20,33 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
+  const [error, setError]     = useState('')
 
-  useEffect(() => {
-    async function load() {
-      const [{ data: sh }, { data: req }] = await Promise.all([
-        supabase.from('shifts').select('*').eq('team_id', params.teamId).order('sort_order'),
-        supabase.from('requirements').select('*').eq('team_id', params.teamId),
-      ])
-      const shiftsData = sh ?? []
-      setShifts(shiftsData)
+  async function load() {
+    const [{ data: sh }, { data: req }] = await Promise.all([
+      supabase.from('shifts').select('*').eq('team_id', params.teamId).order('sort_order'),
+      supabase.from('requirements').select('*').eq('team_id', params.teamId),
+    ])
+    const shiftsData = sh ?? []
+    setShifts(shiftsData)
 
-      const m: Matrix = {}
-      shiftsData.forEach(s => {
-        m[s.id] = {}
-        for (let d = 1; d <= 7; d++) {
-          const existing = (req ?? []).find(r => r.shift_id === s.id && r.day_of_week === d)
-          m[s.id][d] = {
-            min: existing?.min_agents_required ?? 0,
-            max: existing?.max_agents ?? null,
-            reqId: existing?.id,
-          }
+    const m: Matrix = {}
+    shiftsData.forEach(s => {
+      m[s.id] = {}
+      for (let d = 1; d <= 7; d++) {
+        const existing = (req ?? []).find(r => r.shift_id === s.id && r.day_of_week === d)
+        m[s.id][d] = {
+          min: existing?.min_agents_required ?? 0,
+          max: existing?.max_agents ?? null,
+          reqId: existing?.id,
         }
-      })
-      setMatrix(m)
-      setLoading(false)
-    }
-    load()
-  }, [])
+      }
+    })
+    setMatrix(m)
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
 
   function updateMin(shiftId: string, day: number, min: number) {
     setMatrix(prev => ({
@@ -65,7 +65,7 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
   }
 
   async function saveAll() {
-    setSaving(true)
+    setSaving(true); setError('')
     const upserts: object[] = []
     shifts.forEach(s => {
       for (let d = 1; d <= 7; d++) {
@@ -77,14 +77,16 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
           day_of_week: d,
           min_agents_required: cell.min,
           max_agents: cell.max,
-          ...(cell.reqId ? { id: cell.reqId } : {}),
         })
       }
     })
-    await supabase.from('requirements').upsert(upserts, { onConflict: 'team_id,day_of_week,shift_id' })
+    const { error: upErr } = await supabase.from('requirements')
+      .upsert(upserts, { onConflict: 'team_id,day_of_week,shift_id' })
+    if (upErr) { setSaving(false); setError(upErr.message || 'Save failed'); return }
+    await load()                 // reload from DB to reflect what was actually stored
     setSaving(false)
     setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setTimeout(() => setSaved(false), 2500)
   }
 
   if (loading) return <div className="p-8 text-slate-400 text-sm">{t('common.loading')}</div>
@@ -106,6 +108,12 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
           {saving ? t('req.saving') : saved ? t('common.saved') : t('req.saveAll')}
         </button>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
+          {t('req.saveFailed')} {error}
+        </div>
+      )}
 
       {shifts.length === 0 ? (
         <div className="card card-body text-center text-slate-400 py-12">
