@@ -12,6 +12,13 @@ function hexToArgb(hex: string): string {
   return 'FF' + hex.replace('#', '').toUpperCase()
 }
 
+// Escape user-entered note text before embedding in the email HTML.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+  ))
+}
+
 // POST /api/export/[weekId]
 export async function POST(
   _req: NextRequest,
@@ -29,11 +36,17 @@ export async function POST(
     { data: agents },
     { data: shifts },
     { data: entries },
+    { data: notes },
   ] = await Promise.all([
     supabase.from('agents').select('*').eq('team_id', week.team_id).eq('is_active', true).order('created_at'),
     supabase.from('shifts').select('*').eq('team_id', week.team_id).order('sort_order'),
     supabase.from('schedule_entries').select('*, shift:shifts(*)').eq('week_id', week.id),
+    supabase.from('week_notes').select('agent_id, note').eq('week_id', week.id),
   ])
+  function noteOf(agentId: string): string {
+    return ((notes ?? []).find(n => n.agent_id === agentId)?.note ?? '').trim()
+  }
+  const hasAnyNote = (notes ?? []).some(n => (n.note ?? '').trim())
 
   const weekMonday = parseISO(week.week_start_date)
   const weekLabel  = `${format(weekMonday, 'MMM d')} – ${format(addDays(weekMonday, 6), 'MMM d, yyyy')}`
@@ -50,11 +63,13 @@ export async function POST(
   }
 
   // ── 2. Build Excel ──────────────────────────────────────────────────────
+  const noteColIdx = 9                      // Agent(1) + 7 days(2..8) + Note(9)
+  const totalCols  = hasAnyNote ? 9 : 8
   const wb  = new ExcelJS.Workbook()
   const ws  = wb.addWorksheet(`Week ${format(weekMonday, 'w')}`)
 
   // Title row
-  ws.mergeCells(1, 1, 1, 9)
+  ws.mergeCells(1, 1, 1, totalCols)
   const titleCell = ws.getCell('A1')
   titleCell.value = `${week.teams?.name ?? 'Team'} — Schedule ${weekLabel}`
   titleCell.font  = { bold: true, size: 14 }
@@ -63,7 +78,7 @@ export async function POST(
 
   // Header row
   const headerRow = ws.getRow(2)
-  headerRow.values = ['Agent', ...dayHeaders.map(d => d.label)]
+  headerRow.values = ['Agent', ...dayHeaders.map(d => d.label), ...(hasAnyNote ? ['Note'] : [])]
   headerRow.font   = { bold: true, color: { argb: 'FFFFFFFF' } }
   headerRow.eachCell((cell, col) => {
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } }
@@ -74,6 +89,7 @@ export async function POST(
   // Set column widths
   ws.getColumn(1).width = 22
   for (let i = 2; i <= 8; i++) ws.getColumn(i).width = 14
+  if (hasAnyNote) ws.getColumn(noteColIdx).width = 34
 
   // Data rows
   ;(agents ?? []).forEach((agent, rowIdx) => {
@@ -96,13 +112,19 @@ export async function POST(
         cell.font = { color: { argb: hexToArgb(shift.color_code) }, bold: !!shift }
       }
     })
+    if (hasAnyNote) {
+      const nc = row.getCell(noteColIdx)
+      nc.value = noteOf(agent.id)
+      nc.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
+      nc.font = { italic: true, color: { argb: 'FF92400E' } }
+    }
     row.height = 20
   })
 
   // Apply borders
   const lastRow = (agents ?? []).length + 2
   for (let r = 2; r <= lastRow; r++) {
-    for (let c = 1; c <= 8; c++) {
+    for (let c = 1; c <= totalCols; c++) {
       ws.getCell(r, c).border = {
         top:    { style: 'thin', color: { argb: 'FFE2E8F0' } },
         bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -130,17 +152,17 @@ export async function POST(
     [agent.name, ...dayHeaders.map(({ day }) => {
       const shift = getShift(getEntry(agent.id, day)?.shift_id ?? null)
       return shift?.name ?? '—'
-    })]
+    }), ...(hasAnyNote ? [noteOf(agent.id)] : [])]
   )
 
   autoTable(doc, {
     startY: 72,
-    head:   [['Agent', ...dayHeaders.map(d => d.label)]],
+    head:   [['Agent', ...dayHeaders.map(d => d.label), ...(hasAnyNote ? ['Note'] : [])]],
     body:   tableBody,
     styles: { fontSize: 9, cellPadding: 5, valign: 'middle' },
     headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 100 } },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 100 }, ...(hasAnyNote ? { 8: { cellWidth: 120, halign: 'left', fontStyle: 'italic', textColor: [146, 64, 14] } } : {}) },
     didParseCell: ({ cell, row, column }) => {
       if (row.section !== 'body' || column.index === 0) return
       const dayIdx = column.index
@@ -209,7 +231,10 @@ export async function POST(
       const bg = `rgba(${r},${g},${b},0.15)`
       return `<td style="padding:8px 10px;border:1px solid #e2e8f0;text-align:center;font-size:12px;font-weight:600;color:${shift.color_code};background:${bg}">${shift.name}</td>`
     }).join('')
-    return `<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;font-size:12px;white-space:nowrap">${agent.name}</td>${cells}</tr>`
+    const noteCell = hasAnyNote
+      ? `<td style="padding:8px 10px;border:1px solid #e2e8f0;font-size:12px;color:#92400e;font-style:italic">${escapeHtml(noteOf(agent.id))}</td>`
+      : ''
+    return `<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;font-size:12px;white-space:nowrap">${agent.name}</td>${cells}${noteCell}</tr>`
   }).join('')
 
   const scheduleTable = `
@@ -217,8 +242,9 @@ export async function POST(
       <thead><tr>
         <th style="background:#1e3a5f;color:#fff;padding:8px 12px;font-size:12px;text-align:left;border:1px solid #16314f">Agent</th>
         ${headCells}
+        ${hasAnyNote ? '<th style="background:#1e3a5f;color:#fff;padding:8px 12px;font-size:12px;text-align:left;border:1px solid #16314f">ملاحظة</th>' : ''}
       </tr></thead>
-      <tbody>${bodyRows || `<tr><td colspan="8" style="padding:16px;text-align:center;color:#94a3b8">لا توجد تسجيلات</td></tr>`}</tbody>
+      <tbody>${bodyRows || `<tr><td colspan="${totalCols}" style="padding:16px;text-align:center;color:#94a3b8">لا توجد تسجيلات</td></tr>`}</tbody>
     </table>`
 
   if (managerEmails.length === 0) {
