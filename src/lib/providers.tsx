@@ -383,6 +383,9 @@ const en: Dict = {
   'me.saveMine':        'Save my schedule',
   'me.savedToast':      'Your schedule was saved ✅',
   'me.liveHint':        'The schedule updates live — as people register, coverage changes. Refresh for the latest.',
+  'me.noteTitle':       'A note for the manager (optional)',
+  'me.noteHint':        'Any request or comment about this week — it shows next to your preferences.',
+  'me.notePlaceholder': 'e.g. I prefer mornings this week / I have an appointment Wednesday…',
   'me.confirmedBanner': 'Your schedule is confirmed ✓',
   'me.confirmedTitle':  'Your confirmed schedule',
   'me.confirmedBadge':  '✓ Confirmed',
@@ -590,6 +593,26 @@ const en: Dict = {
   'landing.finalTitle':     'Ready to give your team a schedule they can rely on?',
   'landing.finalSub':       'Start free today. Bring your whole team on with a single link.',
   'landing.footer':         '© 2026 Schedoo · Shift scheduling for any team, any sector.',
+
+  // ---- Import final schedule (paste from sheet) ----
+  'imp.button':      'Paste final schedule',
+  'imp.title':       'Import the final schedule from a sheet',
+  'imp.desc':        "Paste the manager's finished schedule and Schedoo fills every week and confirms it — employees see it instantly.",
+  'imp.hint':        'In Google Sheets / Excel, select the whole schedule (the date row + the employee rows with their name in the first column) and copy it, then paste below. Missing shifts (times or leave types) are created automatically. Employee names must match their names in Schedoo.',
+  'imp.placeholder': 'Paste the copied schedule here…',
+  'imp.run':         'Import & confirm',
+  'imp.running':     'Importing…',
+  'imp.close':       'Close',
+  'imp.success':     'Done — the schedule is confirmed and visible to employees.',
+  'imp.doneWeeks':   'Weeks confirmed:',
+  'imp.doneAgents':  'Employees filled:',
+  'imp.doneCells':   'Days filled:',
+  'imp.doneShifts':  'New shifts created:',
+  'imp.unmatched':   'Names not found in Schedoo (skipped):',
+  'imp.noDates':     'No date row found. Include the row of dates (e.g. 21-Aug) when you copy.',
+  'imp.noRows':      'No employee rows found under the dates.',
+  'imp.noMatch':     'None of the names matched employees in this team.',
+  'imp.failed':      'Import failed:',
 }
 
 const ar: Dict = {
@@ -883,6 +906,9 @@ const ar: Dict = {
   'me.saveMine':        'حفظ جدولي',
   'me.savedToast':      'تم حفظ جدولك ✅',
   'me.liveHint':        'الجدول بيتحدّث لحظياً — كل ما حد يسجّل، التغطية تتغيّر. اعمل تحديث للصفحة لأحدث حالة.',
+  'me.noteTitle':       'ملاحظة للمسئول (اختياري)',
+  'me.noteHint':        'أي طلب أو تعليق بخصوص الأسبوع ده — بيظهر جنب رغباتك.',
+  'me.notePlaceholder': 'مثلاً: أفضّل الصباحي الأسبوع ده / عندي ظرف يوم الأربع…',
   'me.confirmedBanner': 'جدولك اتأكّد ✓',
   'me.confirmedTitle':  'جدولك المؤكّد',
   'me.confirmedBadge':  '✓ مؤكّد',
@@ -1079,6 +1105,26 @@ const ar: Dict = {
   'landing.finalTitle':     'جاهز تدّي فريقك جدول يقدر يعتمد عليه؟',
   'landing.finalSub':       'ابدأ مجاناً النهارده. ضُمّ كل فريقك بلينك واحد.',
   'landing.footer':         '© ٢٠٢٦ سكيدوو · جدولة الشيفتات لأي فريق، أي قطاع.',
+
+  // ---- استيراد الجدول النهائي (لصق من الشيت) ----
+  'imp.button':      'لصق الجدول النهائي',
+  'imp.title':       'استيراد الجدول النهائي من الشيت',
+  'imp.desc':        'الصق جدول المسئول النهائي وسكيدوو يملا كل الأسابيع ويأكّدها — الموظفين يشوفوه على طول.',
+  'imp.hint':        'من جوجل شيت / إكسل، حدّد الجدول كله (صف التواريخ + صفوف الموظفين واسم كل واحد في أول عمود) واعمل Copy، وبعدين الصقه تحت. الشيفتات الناقصة (الأوقات أو أنواع الأجازات) بتتعمل تلقائياً. لازم أسماء الموظفين تطابق أسماءهم في سكيدوو.',
+  'imp.placeholder': 'الصق الجدول المنسوخ هنا…',
+  'imp.run':         'استيراد وتأكيد',
+  'imp.running':     'جاري الاستيراد…',
+  'imp.close':       'إغلاق',
+  'imp.success':     'تمام — الجدول اتأكّد وظاهر للموظفين.',
+  'imp.doneWeeks':   'أسابيع اتأكّدت:',
+  'imp.doneAgents':  'موظفين اتملوا:',
+  'imp.doneCells':   'أيام اتملت:',
+  'imp.doneShifts':  'شيفتات جديدة اتعملت:',
+  'imp.unmatched':   'أسماء مش موجودة في سكيدوو (اتخطّت):',
+  'imp.noDates':     'مفيش صف تواريخ. اتأكد إنك ناسخ صف التواريخ (مثلاً 21-Aug) مع الجدول.',
+  'imp.noRows':      'مفيش صفوف موظفين تحت التواريخ.',
+  'imp.noMatch':     'ولا اسم من الأسماء طابق موظفين الفريق ده.',
+  'imp.failed':      'فشل الاستيراد:',
 }
 
 const DICT: Record<Lang, Dict> = { en, ar }

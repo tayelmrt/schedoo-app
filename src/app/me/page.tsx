@@ -33,6 +33,8 @@ export default function AgentHome() {
   const [confirmedEntries, setConfirmedEntries] = useState<any[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
   const [selection, setSelection] = useState<DaySelection>({})
+  const [myNotes, setMyNotes]     = useState<any[]>([])
+  const [note, setNote]           = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast]         = useState('')
 
@@ -52,6 +54,7 @@ export default function AgentHome() {
     setReqs(data.requirements ?? [])
     setOpenWeeks(data.openWeeks ?? [])
     setEntries(data.entries ?? [])
+    setMyNotes(data.myNotes ?? [])
     setConfirmedWeeks(data.confirmedWeeks ?? [])
     setConfirmedEntries(data.confirmedEntries ?? [])
     setStateView('ready')
@@ -68,7 +71,8 @@ export default function AgentHome() {
     entries.filter(e => e.agent_id === agentId && e.week_id === activeWeek.id)
       .forEach(e => { days[e.day_of_week] = e.shift_id })
     setSelection(days)
-  }, [activeIdx, agentId, activeWeek?.id, entries])
+    setNote(myNotes.find(n => n.week_id === activeWeek.id)?.note ?? '')
+  }, [activeIdx, agentId, activeWeek?.id, entries, myNotes])
 
   // ── Coverage helpers ──────────────────────────────────────────────────────
   function shiftOf(aId: string, day: number): Shift | undefined {
@@ -124,7 +128,7 @@ export default function AgentHome() {
     setSubmitting(true)
     const res = await fetch('/api/me/schedule', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ weekId: activeWeek.id, selection }),
+      body: JSON.stringify({ weekId: activeWeek.id, selection, note }),
     })
     const data = await res.json()
     if (data.error) { showToast(data.error); setSubmitting(false); if (res.status === 409) loadData(); return }
@@ -135,6 +139,7 @@ export default function AgentHome() {
       }))
       return [...others, ...mine]
     })
+    setMyNotes(prev => [...prev.filter(n => n.week_id !== activeWeek.id), { week_id: activeWeek.id, note }])
     showToast(t('me.savedToast'))
     setSubmitting(false)
   }
@@ -339,6 +344,20 @@ export default function AgentHome() {
                 </div>
               )
             })}
+
+            {/* Optional note to the manager */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 mb-3">
+              <label className="font-bold text-slate-700 dark:text-slate-200 text-sm">{t('me.noteTitle')}</label>
+              <p className="text-xs text-slate-400 mb-2">{t('me.noteHint')}</p>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                maxLength={500}
+                rows={2}
+                placeholder={t('me.notePlaceholder')}
+                className="input w-full resize-y"
+              />
+            </div>
 
             <button onClick={submit} disabled={submitting} className="btn btn-primary w-full py-3 text-base rounded-2xl mt-2">
               {submitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('me.saving')}</> : <><CheckCircle2 className="w-5 h-5" /> {t('me.saveMine')}</>}

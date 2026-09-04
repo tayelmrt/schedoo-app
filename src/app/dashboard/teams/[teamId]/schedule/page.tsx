@@ -6,10 +6,12 @@ import Link                 from 'next/link'
 import { addDays, format }  from 'date-fns'
 import {
   ChevronLeft, ChevronRight, Lock, Download, RefreshCw, AlertTriangle, CalendarPlus, ArrowRightLeft,
+  ClipboardPaste, X, CheckCircle2, StickyNote,
 } from 'lucide-react'
 import {
   getWeekMonday, getWeekDays, toDateStr, hexToAlpha, isDark
 } from '@/lib/utils'
+import { parseSheet, classifyCell, IMPORT_PALETTE } from '@/lib/importSchedule'
 import type {
   Agent, Shift, Week, ScheduleEntry, Requirement, DayShiftSummary
 } from '@/lib/types'
@@ -39,6 +41,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   const [shifts, setShifts]       = useState<Shift[]>([])
   const [requirements, setReqs]   = useState<Requirement[]>([])
   const [entries, setEntries]     = useState<ScheduleEntry[]>([])
+  const [notes, setNotes]         = useState<{ agent_id: string; note: string }[]>([])
   const [loading, setLoading]     = useState(true)
   const [exporting, setExporting]   = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -46,6 +49,10 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   const [toast, setToast]           = useState('')
   const [swapMode, setSwapMode]     = useState(false)
   const [swapSel, setSwapSel]       = useState<{ agentId: string; day: number } | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [importing, setImporting]   = useState(false)
+  const [importMsg, setImportMsg]   = useState<{ ok: boolean; lines: string[] }>({ ok: true, lines: [] })
 
   const weekDays  = getWeekDays(weekDate)
   const weekStart = toDateStr(weekDate)
@@ -80,10 +87,12 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
     setWeek(weekData)
 
     if (weekData) {
-      const { data: entriesData } = await supabase.from('schedule_entries')
-        .select('*, shift:shifts(*), agent:agents(*)')
-        .eq('week_id', weekData.id)
+      const [{ data: entriesData }, { data: notesData }] = await Promise.all([
+        supabase.from('schedule_entries').select('*, shift:shifts(*), agent:agents(*)').eq('week_id', weekData.id),
+        supabase.from('week_notes').select('agent_id, note').eq('week_id', weekData.id),
+      ])
       setEntries(entriesData ?? [])
+      setNotes((notesData ?? []).filter(n => (n.note ?? '').trim()))
     }
 
     setLoading(false)
@@ -213,6 +222,112 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
     setConfirming(false)
   }
 
+  // ── Import a manager's final sheet (paste from Google Sheets/Excel) ────────
+  // Fills every week found in the paste and CONFIRMS them, so employees see the
+  // final schedule in /me. Missing shifts (times / leave types) are auto-created.
+  async function runImport() {
+    setImporting(true)
+    setImportMsg({ ok: true, lines: [] })
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+    try {
+      const parsed = parseSheet(importText)
+      if (!parsed.headerFound) throw new Error(t('imp.noDates'))
+      if (parsed.rows.length === 0) throw new Error(t('imp.noRows'))
+
+      // Match employee rows to agents by name.
+      const agentByName = new Map(agents.map(a => [norm(a.name), a]))
+      const matched: { agent: Agent; cells: string[] }[] = []
+      const unmatched: string[] = []
+      parsed.rows.forEach(r => {
+        const a = agentByName.get(norm(r.name))
+        if (a) matched.push({ agent: a, cells: r.cells })
+        else unmatched.push(r.name)
+      })
+      if (matched.length === 0) throw new Error(t('imp.noMatch'))
+
+      // Collect distinct cell values → create any shifts we don't have yet.
+      const shiftByName = new Map(shifts.map(s => [norm(s.name), s as any]))
+      const toCreate = new Map<string, { name: string; start_time: string | null; is_off: boolean }>()
+      matched.forEach(({ cells }) => parsed.colDates.forEach((d, ci) => {
+        if (!d || ci === 0) return
+        const c = classifyCell(cells[ci] ?? '')
+        if (c.kind === 'empty') return
+        const k = norm(c.name)
+        if (!shiftByName.has(k) && !toCreate.has(k))
+          toCreate.set(k, { name: c.name, start_time: c.start_time, is_off: c.is_off })
+      }))
+
+      let createdCount = 0
+      if (toCreate.size > 0) {
+        const maxSort = shifts.reduce((m, s) => Math.max(m, s.sort_order ?? 0), 0)
+        const newRows = Array.from(toCreate.values()).map((c, i) => ({
+          team_id: params.teamId, name: c.name, start_time: c.start_time, end_time: null,
+          is_off: c.is_off, color_code: IMPORT_PALETTE[i % IMPORT_PALETTE.length], sort_order: maxSort + 1 + i,
+        }))
+        const { data: created, error } = await supabase.from('shifts').insert(newRows).select()
+        if (error) throw new Error(error.message)
+        ;(created ?? []).forEach(s => shiftByName.set(norm(s.name), s))
+        createdCount = created?.length ?? 0
+      }
+
+      // Ensure a week row exists for every distinct week in the paste.
+      const weekStarts = new Set<string>()
+      parsed.colDates.forEach(d => { if (d) weekStarts.add(toDateStr(getWeekMonday(d))) })
+      const wsArr = Array.from(weekStarts)
+      const { data: existingWeeks } = await supabase.from('weeks')
+        .select('*').eq('team_id', params.teamId).in('week_start_date', wsArr)
+      const weekByStart = new Map((existingWeeks ?? []).map(w => [w.week_start_date, w]))
+      const missing = wsArr.filter(ws => !weekByStart.has(ws))
+      if (missing.length > 0) {
+        const { data: newWeeks, error } = await supabase.from('weeks')
+          .insert(missing.map(ws => ({ team_id: params.teamId, week_start_date: ws, status: 'open' })))
+          .select()
+        if (error) throw new Error(error.message)
+        ;(newWeeks ?? []).forEach(w => weekByStart.set(w.week_start_date, w))
+      }
+
+      const weekIds = wsArr.map(ws => weekByStart.get(ws)!.id)
+      const agentIds = matched.map(m => m.agent.id)
+
+      // Replace: clear matched agents' entries in these weeks, then insert the sheet.
+      await supabase.from('schedule_entries').delete().in('week_id', weekIds).in('agent_id', agentIds)
+
+      const nowIso = new Date().toISOString()
+      const toInsert: any[] = []
+      matched.forEach(({ agent, cells }) => parsed.colDates.forEach((d, ci) => {
+        if (!d || ci === 0) return
+        const c = classifyCell(cells[ci] ?? '')
+        if (c.kind === 'empty') return
+        const sh = shiftByName.get(norm(c.name)); if (!sh) return
+        const wk = weekByStart.get(toDateStr(getWeekMonday(d)))!
+        toInsert.push({
+          week_id: wk.id, agent_id: agent.id, day_of_week: d.getDay() + 1, // 1=Sun … 7=Sat
+          shift_id: sh.id, status: 'submitted', submitted_at: nowIso,
+        })
+      }))
+      for (let i = 0; i < toInsert.length; i += 500) {
+        const { error } = await supabase.from('schedule_entries')
+          .upsert(toInsert.slice(i, i + 500), { onConflict: 'week_id,agent_id,day_of_week' })
+        if (error) throw new Error(error.message)
+      }
+
+      // Confirm every affected week → employees now see the final schedule.
+      await supabase.from('weeks').update({ status: 'confirmed', confirmed_at: nowIso }).in('id', weekIds)
+
+      setImportMsg({ ok: true, lines: [
+        `${t('imp.doneWeeks')} ${weekIds.length}`,
+        `${t('imp.doneAgents')} ${matched.length}`,
+        `${t('imp.doneCells')} ${toInsert.length}`,
+        ...(createdCount ? [`${t('imp.doneShifts')} ${createdCount}`] : []),
+        ...(unmatched.length ? [`${t('imp.unmatched')} ${unmatched.join('، ')}`] : []),
+      ] })
+      await loadAll()
+    } catch (e: any) {
+      setImportMsg({ ok: false, lines: [`${t('imp.failed')} ${e.message}`] })
+    }
+    setImporting(false)
+  }
+
   // ── Export ────────────────────────────────────────────────────────────────
   async function exportSchedule() {
     if (!week) return
@@ -292,6 +407,55 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
         </div>
       )}
 
+      {/* Import (paste final schedule) modal */}
+      {importOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !importing && setImportOpen(false)}>
+          <div className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="card-body">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <ClipboardPaste className="w-5 h-5 text-blue-600" /> {t('imp.title')}
+                  </h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('imp.desc')}</p>
+                </div>
+                <button onClick={() => !importing && setImportOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2 mb-3 leading-relaxed">
+                {t('imp.hint')}
+              </div>
+
+              <textarea
+                value={importText}
+                onChange={e => setImportText(e.target.value)}
+                placeholder={t('imp.placeholder')}
+                dir="ltr"
+                className="input w-full h-40 font-mono text-xs resize-y mb-3"
+              />
+
+              {importMsg.lines.length > 0 && (
+                <div className={`rounded-lg px-4 py-3 mb-3 text-sm ${importMsg.ok
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-200'
+                  : 'bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'}`}>
+                  {importMsg.ok && <div className="flex items-center gap-2 font-bold mb-1"><CheckCircle2 className="w-4 h-4" /> {t('imp.success')}</div>}
+                  <ul className="space-y-0.5">{importMsg.lines.map((l, i) => <li key={i}>• {l}</li>)}</ul>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={() => setImportOpen(false)} disabled={importing} className="btn btn-ghost btn-sm">{t('imp.close')}</button>
+                <button onClick={runImport} disabled={importing || !importText.trim()} className="btn btn-primary btn-sm">
+                  {importing ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('imp.running')}</> : <><CheckCircle2 className="w-3.5 h-3.5" /> {t('imp.run')}</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Friday Warning Banner */}
       {showFridayWarning && (
         <div className="mb-5 flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-200 rounded-xl px-5 py-4">
@@ -351,6 +515,12 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
           <button onClick={openNextWeek} disabled={openingNext} className="btn btn-ghost btn-sm">
             <CalendarPlus className="w-3.5 h-3.5" />
             {openingNext ? t('sched.opening') : t('sched.openNext')}
+          </button>
+
+          <button onClick={() => { setImportOpen(true); setImportMsg({ ok: true, lines: [] }) }}
+            className="btn btn-ghost btn-sm">
+            <ClipboardPaste className="w-3.5 h-3.5" />
+            {t('imp.button')}
           </button>
 
           <button onClick={() => { setSwapMode(v => !v); setSwapSel(null) }}
@@ -417,6 +587,15 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                       </div>
                       <span className="font-medium text-slate-800 dark:text-slate-100 text-sm">{agent.name}</span>
                     </div>
+                    {(() => {
+                      const n = notes.find(x => x.agent_id === agent.id)?.note
+                      return n ? (
+                        <div className="mt-1.5 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-2 py-1" title={n}>
+                          <StickyNote className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                          <span className="leading-snug">{n}</span>
+                        </div>
+                      ) : null
+                    })()}
                   </td>
                   {[1,2,3,4,5,6,7].map(day => {
                     const entry = getEntry(agent.id, day)

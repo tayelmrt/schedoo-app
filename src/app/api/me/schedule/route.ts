@@ -40,12 +40,15 @@ export async function GET() {
   ])
 
   let entries: any[] = []
+  let myNotes: any[] = []
   if (openWeeks && openWeeks.length > 0) {
-    const { data } = await svc
-      .from('schedule_entries')
-      .select('week_id, agent_id, day_of_week, shift_id')
-      .in('week_id', openWeeks.map(w => w.id))
-    entries = data ?? []
+    const weekIds = openWeeks.map(w => w.id)
+    const [{ data: ent }, { data: notes }] = await Promise.all([
+      svc.from('schedule_entries').select('week_id, agent_id, day_of_week, shift_id').in('week_id', weekIds),
+      svc.from('week_notes').select('week_id, note').eq('agent_id', agent.id).in('week_id', weekIds),
+    ])
+    entries = ent ?? []
+    myNotes = notes ?? []
   }
 
   const { data: team } = await svc.from('teams').select('id, name, scheduling_mode').eq('id', agent.team_id).single()
@@ -74,6 +77,7 @@ export async function GET() {
     requirements: requirements ?? [],
     openWeeks: openWeeks ?? [],
     entries,
+    myNotes,
     confirmedWeeks: confirmedWeeks ?? [],
     confirmedEntries,
   })
@@ -87,7 +91,7 @@ export async function POST(req: NextRequest) {
   if (agent.status !== 'approved')
     return NextResponse.json({ error: 'pending' }, { status: 403 })
 
-  const { weekId, selection } = await req.json()
+  const { weekId, selection, note } = await req.json()
 
   const { data: week } = await svc.from('weeks').select('*').eq('id', weekId).single()
   if (!week || week.team_id !== agent.team_id)
@@ -127,6 +131,14 @@ export async function POST(req: NextRequest) {
   }))
   const { error } = await svc.from('schedule_entries').upsert(upserts, { onConflict: 'week_id,agent_id,day_of_week' })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Save the employee's optional note for this week (shown next to their prefs).
+  if (note !== undefined) {
+    await svc.from('week_notes').upsert(
+      { week_id: weekId, agent_id: agent.id, note: String(note).slice(0, 500), updated_at: new Date().toISOString() },
+      { onConflict: 'week_id,agent_id' },
+    )
+  }
 
   return NextResponse.json({ success: true })
 }
