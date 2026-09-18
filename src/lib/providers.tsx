@@ -174,6 +174,10 @@ const en: Dict = {
   'shifts.shift':         'Shift',
   'shifts.none':          'No shifts defined yet',
   'shifts.confirmDelete': 'Delete this shift?',
+  'shifts.edit':          'Edit shift',
+  'shifts.save':          'Save',
+  'shifts.cancel':        'Cancel',
+  'shifts.deleteTitle':   'Delete shift',
 
   // requirements
   'req.title':    'Requirements Matrix',
@@ -705,6 +709,10 @@ const ar: Dict = {
   'shifts.shift':         'شيفت',
   'shifts.none':          'مفيش شيفتات لسه',
   'shifts.confirmDelete': 'تمسح الشيفت ده؟',
+  'shifts.edit':          'تعديل الشيفت',
+  'shifts.save':          'حفظ',
+  'shifts.cancel':        'إلغاء',
+  'shifts.deleteTitle':   'حذف الشيفت',
 
   'req.title':    'مصفوفة المتطلبات',
   'req.subtitle': 'الحد الأدنى والأقصى للموظفين لكل شيفت في كل يوم — سيب الأقصى فاضي لو بدون حد',

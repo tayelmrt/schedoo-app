@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import Link                    from 'next/link'
-import { Plus, Trash2, Clock } from 'lucide-react'
+import { Plus, Trash2, Clock, Pencil, Check, X } from 'lucide-react'
 import { formatTime }          from '@/lib/utils'
 import type { Shift }          from '@/lib/types'
 import { useApp }              from '@/lib/providers'
@@ -15,6 +15,9 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
   const [loading, setLoading] = useState(true)
   const [form, setForm]       = useState({ name:'', start_time:'', end_time:'', color_code:'#3b82f6', is_off: false })
   const [saving, setSaving]   = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm]   = useState({ name:'', start_time:'', end_time:'', color_code:'#3b82f6', is_off: false })
+  const [savingEdit, setSavingEdit] = useState(false)
 
   async function fetchShifts() {
     const { data } = await supabase.from('shifts')
@@ -45,6 +48,32 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
   async function deleteShift(id: string) {
     if (!confirm(t('shifts.confirmDelete'))) return
     await supabase.from('shifts').delete().eq('id', id)
+    fetchShifts()
+  }
+
+  function startEdit(s: Shift) {
+    setEditingId(s.id)
+    setEditForm({
+      name:       s.name,
+      start_time: (s.start_time ?? '').slice(0, 5),
+      end_time:   (s.end_time   ?? '').slice(0, 5),
+      color_code: s.color_code,
+      is_off:     s.is_off,
+    })
+  }
+
+  async function saveEdit(id: string) {
+    if (!editForm.name.trim()) return
+    setSavingEdit(true)
+    await supabase.from('shifts').update({
+      name:       editForm.name.trim(),
+      start_time: editForm.is_off ? null : (editForm.start_time || null),
+      end_time:   editForm.is_off ? null : (editForm.end_time   || null),
+      color_code: editForm.color_code,
+      is_off:     editForm.is_off,
+    }).eq('id', id)
+    setSavingEdit(false)
+    setEditingId(null)
     fetchShifts()
   }
 
@@ -116,7 +145,46 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
                 </tr>
               </thead>
               <tbody>
-                {shifts.map(s => (
+                {shifts.map(s => editingId === s.id ? (
+                  <tr key={s.id} className="border-b border-slate-50 dark:border-slate-800 bg-blue-50/40 dark:bg-blue-900/10">
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <input type="color" className="h-9 w-11 rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer p-0.5 flex-shrink-0"
+                          value={editForm.color_code} onChange={e => setEditForm(f => ({ ...f, color_code: e.target.value }))} />
+                        <input className="input py-1.5" placeholder={t('shifts.namePlaceholder')}
+                          value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-1.5">
+                        <input className="input py-1.5 w-28" type="time" disabled={editForm.is_off}
+                          value={editForm.start_time} onChange={e => setEditForm(f => ({ ...f, start_time: e.target.value }))} />
+                        <span className="text-slate-400">–</span>
+                        <input className="input py-1.5 w-28" type="time" disabled={editForm.is_off}
+                          value={editForm.end_time} onChange={e => setEditForm(f => ({ ...f, end_time: e.target.value }))} />
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                        <input type="checkbox" className="rounded"
+                          checked={editForm.is_off} onChange={e => setEditForm(f => ({ ...f, is_off: e.target.checked }))} />
+                        {t('shifts.isOff')}
+                      </label>
+                    </td>
+                    <td className="p-4 text-end">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => saveEdit(s.id)} disabled={savingEdit || !editForm.name.trim()}
+                          className="text-emerald-600 hover:text-emerald-700 disabled:opacity-40 transition-colors" title={t('shifts.save')}>
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setEditingId(null)}
+                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors" title={t('shifts.cancel')}>
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
                   <tr key={s.id} className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="p-4">
                       <div className="flex items-center gap-2">
@@ -135,10 +203,16 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
                       </span>
                     </td>
                     <td className="p-4 text-end">
-                      <button onClick={() => deleteShift(s.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button onClick={() => startEdit(s)}
+                          className="text-slate-300 hover:text-blue-600 transition-colors" title={t('shifts.edit')}>
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => deleteShift(s.id)}
+                          className="text-slate-300 hover:text-red-500 transition-colors" title={t('shifts.deleteTitle')}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
