@@ -113,7 +113,7 @@ export default function AgentHome() {
   const shortageHints: string[] = []
   if (activeWeek) {
     for (let d = 1; d <= 7; d++) {
-      shifts.filter(s => !s.is_off).forEach(s => {
+      shifts.filter(s => !s.is_off && !s.closed_for_registration).forEach(s => {
         const c = coverage(d, s.id)
         if (c.status === 'short') shortageHints.push(`${t(`day.${d - 1}`)} · ${s.name} (${c.count}/${c.min})`)
       })
@@ -266,7 +266,7 @@ export default function AgentHome() {
                       )
                     })}
                     {/* Coverage row per work shift */}
-                    {shifts.filter(s => !s.is_off).map(s => (
+                    {shifts.filter(s => !s.is_off && !s.closed_for_registration).map(s => (
                       <tr key={'cov'+s.id} className="border-t border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40">
                         <td className="p-2 px-4 sticky start-0 bg-slate-50/70 dark:bg-slate-800">
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-300">
@@ -320,7 +320,7 @@ export default function AgentHome() {
                       <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{selShift.name}</span></div>}
                   </div>
                   <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {shifts.map(s => {
+                    {shifts.filter(s => !s.closed_for_registration).map(s => {
                       const isSel = selected === s.id
                       const cap = myCapacity(dayNum, s.id)
                       const locked = cap.full && !isSel

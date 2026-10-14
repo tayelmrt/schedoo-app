@@ -61,6 +61,7 @@ export interface Shift {
   end_time: string | null
   color_code: string
   is_off: boolean
+  closed_for_registration?: boolean
   sort_order: number
   created_at: string
 }

@@ -178,6 +178,8 @@ const en: Dict = {
   'shifts.save':          'Save',
   'shifts.cancel':        'Cancel',
   'shifts.deleteTitle':   'Delete shift',
+  'shifts.closed':        'Closed for registration',
+  'shifts.closedBadge':   'Closed',
 
   // requirements
   'req.title':    'Requirements Matrix',
@@ -713,6 +715,8 @@ const ar: Dict = {
   'shifts.save':          'حفظ',
   'shifts.cancel':        'إلغاء',
   'shifts.deleteTitle':   'حذف الشيفت',
+  'shifts.closed':        'مغلق للتسجيل',
+  'shifts.closedBadge':   'مغلق',
 
   'req.title':    'مصفوفة المتطلبات',
   'req.subtitle': 'الحد الأدنى والأقصى للموظفين لكل شيفت في كل يوم — سيب الأقصى فاضي لو بدون حد',

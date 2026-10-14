@@ -13,10 +13,10 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
   const { t } = useApp()
   const [shifts, setShifts]   = useState<Shift[]>([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm]       = useState({ name:'', start_time:'', end_time:'', color_code:'#3b82f6', is_off: false })
+  const [form, setForm]       = useState({ name:'', start_time:'', end_time:'', color_code:'#3b82f6', is_off: false, closed: false })
   const [saving, setSaving]   = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm]   = useState({ name:'', start_time:'', end_time:'', color_code:'#3b82f6', is_off: false })
+  const [editForm, setEditForm]   = useState({ name:'', start_time:'', end_time:'', color_code:'#3b82f6', is_off: false, closed: false })
   const [savingEdit, setSavingEdit] = useState(false)
 
   async function fetchShifts() {
@@ -38,9 +38,10 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
       end_time:   form.is_off ? null : (form.end_time   || null),
       color_code: form.color_code,
       is_off:     form.is_off,
+      closed_for_registration: form.closed,
       sort_order: shifts.length,
     })
-    setForm({ name:'', start_time:'', end_time:'', color_code:'#3b82f6', is_off: false })
+    setForm({ name:'', start_time:'', end_time:'', color_code:'#3b82f6', is_off: false, closed: false })
     setSaving(false)
     fetchShifts()
   }
@@ -59,6 +60,7 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
       end_time:   (s.end_time   ?? '').slice(0, 5),
       color_code: s.color_code,
       is_off:     s.is_off,
+      closed:     !!s.closed_for_registration,
     })
   }
 
@@ -71,6 +73,7 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
       end_time:   editForm.is_off ? null : (editForm.end_time   || null),
       color_code: editForm.color_code,
       is_off:     editForm.is_off,
+      closed_for_registration: editForm.closed,
     }).eq('id', id)
     setSavingEdit(false)
     setEditingId(null)
@@ -118,11 +121,18 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
-                <input type="checkbox" className="rounded"
-                  checked={form.is_off} onChange={e => setForm(f => ({ ...f, is_off: e.target.checked }))} />
-                {t('shifts.isOff')}
-              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+                  <input type="checkbox" className="rounded"
+                    checked={form.is_off} onChange={e => setForm(f => ({ ...f, is_off: e.target.checked }))} />
+                  {t('shifts.isOff')}
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+                  <input type="checkbox" className="rounded"
+                    checked={form.closed} onChange={e => setForm(f => ({ ...f, closed: e.target.checked }))} />
+                  {t('shifts.closed')}
+                </label>
+              </div>
               <button type="submit" disabled={saving} className="btn btn-primary btn-sm">
                 {saving ? t('shifts.adding') : t('shifts.add')}
               </button>
@@ -165,11 +175,18 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
                       </div>
                     </td>
                     <td className="p-4">
-                      <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
-                        <input type="checkbox" className="rounded"
-                          checked={editForm.is_off} onChange={e => setEditForm(f => ({ ...f, is_off: e.target.checked }))} />
-                        {t('shifts.isOff')}
-                      </label>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                          <input type="checkbox" className="rounded"
+                            checked={editForm.is_off} onChange={e => setEditForm(f => ({ ...f, is_off: e.target.checked }))} />
+                          {t('shifts.isOff')}
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                          <input type="checkbox" className="rounded"
+                            checked={editForm.closed} onChange={e => setEditForm(f => ({ ...f, closed: e.target.checked }))} />
+                          {t('shifts.closed')}
+                        </label>
+                      </div>
                     </td>
                     <td className="p-4 text-end">
                       <div className="flex items-center justify-end gap-2">
@@ -196,11 +213,18 @@ export default function ShiftsPage({ params }: { params: { teamId: string } }) {
                       {s.is_off ? '—' : `${formatTime(s.start_time)} – ${formatTime(s.end_time)}`}
                     </td>
                     <td className="p-4">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        s.is_off ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                      }`}>
-                        {s.is_off ? t('shifts.dayOff') : t('shifts.shift')}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          s.is_off ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                        }`}>
+                          {s.is_off ? t('shifts.dayOff') : t('shifts.shift')}
+                        </span>
+                        {s.closed_for_registration && (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                            🔒 {t('shifts.closedBadge')}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 text-end">
                       <div className="flex items-center justify-end gap-3">
