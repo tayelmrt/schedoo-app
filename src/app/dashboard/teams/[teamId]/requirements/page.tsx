@@ -37,7 +37,7 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
         const existing = (req ?? []).find(r => r.shift_id === s.id && r.day_of_week === d)
         m[s.id][d] = {
           min: existing?.min_agents_required ?? 0,
-          max: existing?.max_agents ?? null,
+          max: existing?.max_agents || null,   // treat 0 as "no cap" (empty)
           reqId: existing?.id,
         }
       }
@@ -56,7 +56,7 @@ export default function RequirementsPage({ params }: { params: { teamId: string 
     setSaved(false)
   }
   function updateMax(shiftId: string, day: number, raw: string) {
-    const max = raw === '' ? null : (parseInt(raw) || 0)
+    const max = raw === '' ? null : (parseInt(raw) || null)   // 0 / invalid = no cap
     setMatrix(prev => ({
       ...prev,
       [shiftId]: { ...prev[shiftId], [day]: { ...prev[shiftId][day], max } }

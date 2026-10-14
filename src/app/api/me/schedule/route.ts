@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
   // Enforce max capacity
   const { data: reqs } = await svc
     .from('requirements').select('day_of_week, shift_id, max_agents')
-    .eq('team_id', agent.team_id).not('max_agents', 'is', null)
+    .eq('team_id', agent.team_id).gt('max_agents', 0)   // 0 / null = no cap
 
   if (reqs && reqs.length > 0) {
     const { data: others } = await svc

@@ -84,7 +84,8 @@ export default function AgentHome() {
   function coverage(day: number, shiftId: string) {
     const req = requirements.find(r => r.day_of_week === day && r.shift_id === shiftId)
     const min = req?.min_agents_required ?? 0
-    const max = req?.max_agents ?? null
+    const rawMax = req?.max_agents ?? null
+    const max = rawMax && rawMax > 0 ? rawMax : null   // 0 / null = no cap
     const count = activeWeek
       ? entries.filter(e => e.week_id === activeWeek.id && e.day_of_week === day && e.shift_id === shiftId).length
       : 0
@@ -98,7 +99,8 @@ export default function AgentHome() {
   // capacity for MY picker (exclude myself so my own pick doesn't block me)
   function myCapacity(day: number, shiftId: string) {
     const req = requirements.find(r => r.day_of_week === day && r.shift_id === shiftId)
-    const max = req?.max_agents ?? null
+    const rawMax = req?.max_agents ?? null
+    const max = rawMax && rawMax > 0 ? rawMax : null   // 0 / null = no cap, never lock
     const min = req?.min_agents_required ?? 0
     if (!activeWeek) return { full: false, short: false, count: 0, max, min }
     const count = entries.filter(e =>
