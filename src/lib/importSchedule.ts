@@ -44,14 +44,15 @@ export function classifyCell(raw: string): {
   return { kind: 'work', name: v, start_time: null, is_off: false }
 }
 
-/** Extract a 24h "HH:MM" start time from a cell like "9:00 am", "12:00 am", "4 pm", "16:30". */
+/** Extract a 24h "HH:MM" start time from a cell like "9:00 am", "9:00:00 AM( Site)", "4 pm", "16:30".
+ *  Anchored at the start so a trailing ":00" (seconds) or notes don't shift the match. */
 function parseTime(v: string): string | null {
   const s = v.toLowerCase().trim()
-  let m = s.match(/(\d{1,2}):(\d{2})\s*(am|pm)/)          // 9:00 am
+  let m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)\b/) // 9:00 am / 9:00:00 am( site)
   if (m) return to24(+m[1], +m[2], m[3])
-  m = s.match(/(\d{1,2})\s*(am|pm)/)                      // 9 am
+  m = s.match(/^(\d{1,2})\s*(am|pm)\b/)                        // 9 am
   if (m) return to24(+m[1], 0, m[2])
-  m = s.match(/^(\d{1,2}):(\d{2})$/)                      // 16:30 (24h)
+  m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)                // 16:30 / 16:30:00 (24h)
   if (m) { const h = +m[1], mm = +m[2]; if (h < 24 && mm < 60) return pad(h) + ':' + pad(mm) }
   return null
 }
