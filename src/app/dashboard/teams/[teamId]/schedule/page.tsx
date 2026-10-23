@@ -52,6 +52,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
   const [importing, setImporting]   = useState(false)
+  const [importCurrentOnly, setImportCurrentOnly] = useState(true)
   const [importMsg, setImportMsg]   = useState<{ ok: boolean; lines: string[] }>({ ok: true, lines: [] })
 
   const weekDays  = getWeekDays(weekDate)
@@ -234,6 +235,12 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       if (!parsed.headerFound) throw new Error(t('imp.noDates'))
       if (parsed.rows.length === 0) throw new Error(t('imp.noRows'))
 
+      // Optionally apply only the week currently shown on the page, so a paste of
+      // several weeks only touches the one the manager is standing on.
+      const inScope = (d: Date | null): boolean =>
+        !!d && (!importCurrentOnly || toDateStr(getWeekMonday(d)) === weekStart)
+      if (importCurrentOnly && !parsed.colDates.some(inScope)) throw new Error(t('imp.noCurrentWeek'))
+
       // Match employee rows to agents by name.
       const agentByName = new Map(agents.map(a => [norm(a.name), a]))
       const matched: { agent: Agent; cells: string[] }[] = []
@@ -249,7 +256,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       const shiftByName = new Map(shifts.map(s => [norm(s.name), s as any]))
       const toCreate = new Map<string, { name: string; start_time: string | null; is_off: boolean }>()
       matched.forEach(({ cells }) => parsed.colDates.forEach((d, ci) => {
-        if (!d || ci === 0) return
+        if (ci === 0 || !inScope(d)) return
         const c = classifyCell(cells[ci] ?? '')
         if (c.kind === 'empty') return
         const k = norm(c.name)
@@ -272,7 +279,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
 
       // Ensure a week row exists for every distinct week in the paste.
       const weekStarts = new Set<string>()
-      parsed.colDates.forEach(d => { if (d) weekStarts.add(toDateStr(getWeekMonday(d))) })
+      parsed.colDates.forEach(d => { if (inScope(d)) weekStarts.add(toDateStr(getWeekMonday(d!))) })
       const wsArr = Array.from(weekStarts)
       const { data: existingWeeks } = await supabase.from('weeks')
         .select('*').eq('team_id', params.teamId).in('week_start_date', wsArr)
@@ -295,13 +302,13 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       const nowIso = new Date().toISOString()
       const toInsert: any[] = []
       matched.forEach(({ agent, cells }) => parsed.colDates.forEach((d, ci) => {
-        if (!d || ci === 0) return
+        if (ci === 0 || !inScope(d)) return
         const c = classifyCell(cells[ci] ?? '')
         if (c.kind === 'empty') return
         const sh = shiftByName.get(norm(c.name)); if (!sh) return
-        const wk = weekByStart.get(toDateStr(getWeekMonday(d)))!
+        const wk = weekByStart.get(toDateStr(getWeekMonday(d!)))!
         toInsert.push({
-          week_id: wk.id, agent_id: agent.id, day_of_week: d.getDay() + 1, // 1=Sun … 7=Sat
+          week_id: wk.id, agent_id: agent.id, day_of_week: d!.getDay() + 1, // 1=Sun … 7=Sat
           shift_id: sh.id, status: 'submitted', submitted_at: nowIso,
         })
       }))
@@ -444,6 +451,12 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                   <ul className="space-y-0.5">{importMsg.lines.map((l, i) => <li key={i}>• {l}</li>)}</ul>
                 </div>
               )}
+
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 mb-3 cursor-pointer">
+                <input type="checkbox" className="rounded" checked={importCurrentOnly}
+                  onChange={e => setImportCurrentOnly(e.target.checked)} />
+                {t('imp.currentOnly')}
+              </label>
 
               <div className="flex items-center justify-end gap-2">
                 <button onClick={() => setImportOpen(false)} disabled={importing} className="btn btn-ghost btn-sm">{t('imp.close')}</button>

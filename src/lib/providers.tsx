@@ -618,6 +618,8 @@ const en: Dict = {
   'imp.noDates':     'No date row found. Include the row of dates (e.g. 21-Aug) when you copy.',
   'imp.noRows':      'No employee rows found under the dates.',
   'imp.noMatch':     'None of the names matched employees in this team.',
+  'imp.currentOnly': 'Import only the week shown above (ignore other weeks in the paste)',
+  'imp.noCurrentWeek': 'The pasted sheet has no columns for the week shown above. Move to the right week, or untick the box.',
   'imp.failed':      'Import failed:',
 }
 
@@ -1136,6 +1138,8 @@ const ar: Dict = {
   'imp.noDates':     'مفيش صف تواريخ. اتأكد إنك ناسخ صف التواريخ (مثلاً 21-Aug) مع الجدول.',
   'imp.noRows':      'مفيش صفوف موظفين تحت التواريخ.',
   'imp.noMatch':     'ولا اسم من الأسماء طابق موظفين الفريق ده.',
+  'imp.currentOnly': 'استورد الأسبوع المعروض فوق بس (تجاهل باقي الأسابيع في اللي لزقته)',
+  'imp.noCurrentWeek': 'اللي لزقته مفيهوش أعمدة للأسبوع المعروض فوق. روح للأسبوع الصح، أو شيل العلامة.',
   'imp.failed':      'فشل الاستيراد:',
 }
 
