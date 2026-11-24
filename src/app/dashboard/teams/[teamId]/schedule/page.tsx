@@ -5,7 +5,7 @@ import { createClient }     from '@/lib/supabase/client'
 import Link                 from 'next/link'
 import { addDays, format }  from 'date-fns'
 import {
-  ChevronLeft, ChevronRight, Lock, Download, RefreshCw, AlertTriangle, CalendarPlus, ArrowRightLeft,
+  ChevronLeft, ChevronRight, Lock, Unlock, Clock, Download, RefreshCw, AlertTriangle, CalendarPlus, ArrowRightLeft,
   ClipboardPaste, X, CheckCircle2, StickyNote,
 } from 'lucide-react'
 import {
@@ -17,6 +17,21 @@ import type {
 } from '@/lib/types'
 import { DAY_SHORTS } from '@/lib/types'
 import { useApp }    from '@/lib/providers'
+
+// Small edit-distance for fuzzy name matching (≤ a couple of typos).
+function lev(a: string, b: string): number {
+  const m = a.length, n = b.length
+  if (!m) return n; if (!n) return m
+  let prev = Array.from({ length: n + 1 }, (_, i) => i)
+  for (let i = 1; i <= m; i++) {
+    const cur = [i]
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    }
+    prev = cur
+  }
+  return prev[n]
+}
 
 // ─── Status badge ────────────────────────────────────────────────────────────
 function StatusBadge({ count, required }: { count: number; required: number }) {
@@ -46,6 +61,12 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   const [exporting, setExporting]   = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [openingNext, setOpeningNext] = useState(false)
+  const [closing, setClosing]       = useState(false)
+  const [autoPanel, setAutoPanel]   = useState(false)
+  const [autoAt, setAutoAt]         = useState('')          // datetime-local value
+  const [autoEmail, setAutoEmail]   = useState('')
+  const [teamAutoEmail, setTeamAutoEmail] = useState('')
+  const [savingAuto, setSavingAuto] = useState(false)
   const [toast, setToast]           = useState('')
   const [swapMode, setSwapMode]     = useState(false)
   const [swapSel, setSwapSel]       = useState<{ agentId: string; day: number } | null>(null)
@@ -53,6 +74,9 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   const [importText, setImportText] = useState('')
   const [importing, setImporting]   = useState(false)
   const [importCurrentOnly, setImportCurrentOnly] = useState(true)
+  const [importPhase, setImportPhase] = useState<'paste' | 'map'>('paste')
+  const [importParsed, setImportParsed] = useState<{ colDates: (Date | null)[]; rows: { name: string; cells: string[] }[] } | null>(null)
+  const [importMap, setImportMap]   = useState<string[]>([])   // per sheet row → agent id, '' = skip
   const [importMsg, setImportMsg]   = useState<{ ok: boolean; lines: string[] }>({ ok: true, lines: [] })
 
   const weekDays  = getWeekDays(weekDate)
@@ -65,15 +89,18 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       { data: agentsData },
       { data: shiftsData },
       { data: reqsData },
+      { data: teamData },
     ] = await Promise.all([
       supabase.from('agents').select('*').eq('team_id', params.teamId).eq('is_active', true).order('created_at'),
       supabase.from('shifts').select('*').eq('team_id', params.teamId).order('sort_order'),
       supabase.from('requirements').select('*').eq('team_id', params.teamId),
+      supabase.from('teams').select('auto_export_email').eq('id', params.teamId).maybeSingle(),
     ])
 
     setAgents(agentsData ?? [])
     setShifts(shiftsData ?? [])
     setReqs(reqsData ?? [])
+    setTeamAutoEmail((teamData as any)?.auto_export_email ?? '')
 
     // Fetch or create week
     let { data: weekData } = await supabase.from('weeks')
@@ -224,44 +251,75 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   }
 
   // ── Import a manager's final sheet (paste from Google Sheets/Excel) ────────
-  // Fills every week found in the paste and CONFIRMS them, so employees see the
-  // final schedule in /me. Missing shifts (times / leave types) are auto-created.
-  async function runImport() {
+  // Step 1: parse the paste and auto-guess which tool employee each sheet name is.
+  // Step 2 (applyImport): the manager confirms the mapping, then it fills + confirms.
+  const normName = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+
+  // Best-guess an agent for a sheet name. Returns index into `agents` or -1.
+  function guessAgent(sheetName: string): number {
+    const at = normName(sheetName).split(' ').filter(Boolean)
+    if (!at.length) return -1
+    let bestI = -1, best = 0, second = 0
+    agents.forEach((ag, i) => {
+      const bt = normName(ag.name).split(' ').filter(Boolean)
+      if (!bt.length) return
+      let hits = 0
+      for (const ta of at) if (bt.some(tb => tb === ta || (ta.length >= 3 && (tb.startsWith(ta) || ta.startsWith(tb))) || lev(ta, tb) <= 1)) hits++
+      let sc = Math.max(hits / at.length, hits / bt.length)
+      if (at[0] === bt[0] || lev(at[0], bt[0]) <= 1) sc += 0.3
+      if (sc > best) { second = best; best = sc; bestI = i }
+      else if (sc > second) second = sc
+    })
+    // Only auto-pick a clear, confident winner; else leave for the manager.
+    return (best >= 0.9 && best - second >= 0.25) ? bestI : -1
+  }
+
+  function prepareImport() {
+    setImportMsg({ ok: true, lines: [] })
+    const parsed = parseSheet(importText)
+    if (!parsed.headerFound) { setImportMsg({ ok: false, lines: [t('imp.noDates')] }); return }
+    if (parsed.rows.length === 0) { setImportMsg({ ok: false, lines: [t('imp.noRows')] }); return }
+    const used = new Set<number>()
+    const map = parsed.rows.map(r => {
+      const gi = guessAgent(r.name)
+      if (gi >= 0 && !used.has(gi)) { used.add(gi); return agents[gi].id }
+      return ''
+    })
+    setImportParsed({ colDates: parsed.colDates, rows: parsed.rows })
+    setImportMap(map)
+    setImportPhase('map')
+  }
+
+  async function applyImport() {
+    if (!importParsed) return
     setImporting(true)
     setImportMsg({ ok: true, lines: [] })
-    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+    const norm = normName
     try {
-      const parsed = parseSheet(importText)
-      if (!parsed.headerFound) throw new Error(t('imp.noDates'))
-      if (parsed.rows.length === 0) throw new Error(t('imp.noRows'))
-
-      // Optionally apply only the week currently shown on the page, so a paste of
-      // several weeks only touches the one the manager is standing on.
+      const { colDates, rows } = importParsed
       const inScope = (d: Date | null): boolean =>
         !!d && (!importCurrentOnly || toDateStr(getWeekMonday(d)) === weekStart)
-      if (importCurrentOnly && !parsed.colDates.some(inScope)) throw new Error(t('imp.noCurrentWeek'))
+      if (importCurrentOnly && !colDates.some(inScope)) throw new Error(t('imp.noCurrentWeek'))
 
-      // Match employee rows to agents by name.
-      const agentByName = new Map(agents.map(a => [norm(a.name), a]))
+      // Build matched list from the manager-approved mapping.
+      const agentById = new Map(agents.map(a => [a.id, a]))
       const matched: { agent: Agent; cells: string[] }[] = []
-      const unmatched: string[] = []
-      parsed.rows.forEach(r => {
-        const a = agentByName.get(norm(r.name))
-        if (a) matched.push({ agent: a, cells: r.cells })
-        else unmatched.push(r.name)
+      rows.forEach((r, i) => {
+        const aid = importMap[i]
+        const ag = aid ? agentById.get(aid) : undefined
+        if (ag) matched.push({ agent: ag, cells: r.cells })
       })
-      if (matched.length === 0) throw new Error(t('imp.noMatch'))
+      if (matched.length === 0) throw new Error(t('imp.noMapped'))
 
-      // Collect distinct cell values → create any shifts we don't have yet.
+      // Create any shifts (times / leave types) we don't have yet.
       const shiftByName = new Map(shifts.map(s => [norm(s.name), s as any]))
       const toCreate = new Map<string, { name: string; start_time: string | null; is_off: boolean }>()
-      matched.forEach(({ cells }) => parsed.colDates.forEach((d, ci) => {
+      matched.forEach(({ cells }) => colDates.forEach((d, ci) => {
         if (ci === 0 || !inScope(d)) return
         const c = classifyCell(cells[ci] ?? '')
         if (c.kind === 'empty') return
         const k = norm(c.name)
-        if (!shiftByName.has(k) && !toCreate.has(k))
-          toCreate.set(k, { name: c.name, start_time: c.start_time, is_off: c.is_off })
+        if (!shiftByName.has(k) && !toCreate.has(k)) toCreate.set(k, { name: c.name, start_time: c.start_time, is_off: c.is_off })
       }))
 
       let createdCount = 0
@@ -277,9 +335,8 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
         createdCount = created?.length ?? 0
       }
 
-      // Ensure a week row exists for every distinct week in the paste.
       const weekStarts = new Set<string>()
-      parsed.colDates.forEach(d => { if (inScope(d)) weekStarts.add(toDateStr(getWeekMonday(d!))) })
+      colDates.forEach(d => { if (inScope(d)) weekStarts.add(toDateStr(getWeekMonday(d!))) })
       const wsArr = Array.from(weekStarts)
       const { data: existingWeeks } = await supabase.from('weeks')
         .select('*').eq('team_id', params.teamId).in('week_start_date', wsArr)
@@ -287,30 +344,24 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       const missing = wsArr.filter(ws => !weekByStart.has(ws))
       if (missing.length > 0) {
         const { data: newWeeks, error } = await supabase.from('weeks')
-          .insert(missing.map(ws => ({ team_id: params.teamId, week_start_date: ws, status: 'open' })))
-          .select()
+          .insert(missing.map(ws => ({ team_id: params.teamId, week_start_date: ws, status: 'open' }))).select()
         if (error) throw new Error(error.message)
         ;(newWeeks ?? []).forEach(w => weekByStart.set(w.week_start_date, w))
       }
 
       const weekIds = wsArr.map(ws => weekByStart.get(ws)!.id)
       const agentIds = matched.map(m => m.agent.id)
-
-      // Replace: clear matched agents' entries in these weeks, then insert the sheet.
       await supabase.from('schedule_entries').delete().in('week_id', weekIds).in('agent_id', agentIds)
 
       const nowIso = new Date().toISOString()
       const toInsert: any[] = []
-      matched.forEach(({ agent, cells }) => parsed.colDates.forEach((d, ci) => {
+      matched.forEach(({ agent, cells }) => colDates.forEach((d, ci) => {
         if (ci === 0 || !inScope(d)) return
         const c = classifyCell(cells[ci] ?? '')
         if (c.kind === 'empty') return
         const sh = shiftByName.get(norm(c.name)); if (!sh) return
         const wk = weekByStart.get(toDateStr(getWeekMonday(d!)))!
-        toInsert.push({
-          week_id: wk.id, agent_id: agent.id, day_of_week: d!.getDay() + 1, // 1=Sun … 7=Sat
-          shift_id: sh.id, status: 'submitted', submitted_at: nowIso,
-        })
+        toInsert.push({ week_id: wk.id, agent_id: agent.id, day_of_week: d!.getDay() + 1, shift_id: sh.id, status: 'submitted', submitted_at: nowIso })
       }))
       for (let i = 0; i < toInsert.length; i += 500) {
         const { error } = await supabase.from('schedule_entries')
@@ -318,16 +369,17 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
         if (error) throw new Error(error.message)
       }
 
-      // Confirm every affected week → employees now see the final schedule.
       await supabase.from('weeks').update({ status: 'confirmed', confirmed_at: nowIso }).in('id', weekIds)
 
+      const skipped = importMap.filter(m => !m).length
       setImportMsg({ ok: true, lines: [
         `${t('imp.doneWeeks')} ${weekIds.length}`,
         `${t('imp.doneAgents')} ${matched.length}`,
         `${t('imp.doneCells')} ${toInsert.length}`,
         ...(createdCount ? [`${t('imp.doneShifts')} ${createdCount}`] : []),
-        ...(unmatched.length ? [`${t('imp.unmatched')} ${unmatched.join('، ')}`] : []),
+        ...(skipped ? [`${t('imp.skipped')} ${skipped}`] : []),
       ] })
+      setImportPhase('paste')
       await loadAll()
     } catch (e: any) {
       setImportMsg({ ok: false, lines: [`${t('imp.failed')} ${e.message}`] })
@@ -356,6 +408,46 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       showToast(t('sched.exportFailed') + ' ' + err.message)
     }
     setExporting(false)
+  }
+
+  // ── Close registration now + send, reopen, and auto-close settings ─────────
+  function toLocalInput(iso?: string | null): string {
+    if (!iso) return ''
+    const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+  }
+
+  async function closeNowAndSend() {
+    if (!week) return
+    if (!confirm(t('sched.closeDialog'))) return
+    setClosing(true)
+    await supabase.from('weeks').update({ registration_locked: true }).eq('id', week.id)
+    try {
+      const res  = await fetch(`/api/export/${week.id}`, { method: 'POST' })
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
+      showToast(json.emailed
+        ? `${t('sched.closedSent')} (${json.recipients?.length || 0})`
+        : json.email_error ? t('sched.exportedNoEmail') + ' ' + json.email_error : t('sched.filesCreated'))
+    } catch (err: any) {
+      showToast(t('sched.exportFailed') + ' ' + err.message)
+    }
+    loadAll(); setClosing(false)
+  }
+
+  async function reopenRegistration() {
+    if (!week) return
+    await supabase.from('weeks').update({ registration_locked: false, auto_closed_at: null }).eq('id', week.id)
+    showToast(t('sched.reopened')); loadAll()
+  }
+
+  async function saveAutoClose() {
+    if (!week) return
+    setSavingAuto(true)
+    const iso = autoAt ? new Date(autoAt).toISOString() : null
+    await supabase.from('weeks').update({ auto_close_at: iso }).eq('id', week.id)
+    await supabase.from('teams').update({ auto_export_email: autoEmail.trim() || null }).eq('id', params.teamId)
+    showToast(t('sched.autoSaved')); setSavingAuto(false); setAutoPanel(false); loadAll()
   }
 
   // ── Open next week for agent submissions ──────────────────────────────────
@@ -431,18 +523,6 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                 </button>
               </div>
 
-              <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2 mb-3 leading-relaxed">
-                {t('imp.hint')}
-              </div>
-
-              <textarea
-                value={importText}
-                onChange={e => setImportText(e.target.value)}
-                placeholder={t('imp.placeholder')}
-                dir="ltr"
-                className="input w-full h-40 font-mono text-xs resize-y mb-3"
-              />
-
               {importMsg.lines.length > 0 && (
                 <div className={`rounded-lg px-4 py-3 mb-3 text-sm ${importMsg.ok
                   ? 'bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-200'
@@ -452,18 +532,60 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
                 </div>
               )}
 
-              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 mb-3 cursor-pointer">
-                <input type="checkbox" className="rounded" checked={importCurrentOnly}
-                  onChange={e => setImportCurrentOnly(e.target.checked)} />
-                {t('imp.currentOnly')}
-              </label>
-
-              <div className="flex items-center justify-end gap-2">
-                <button onClick={() => setImportOpen(false)} disabled={importing} className="btn btn-ghost btn-sm">{t('imp.close')}</button>
-                <button onClick={runImport} disabled={importing || !importText.trim()} className="btn btn-primary btn-sm">
-                  {importing ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('imp.running')}</> : <><CheckCircle2 className="w-3.5 h-3.5" /> {t('imp.run')}</>}
-                </button>
-              </div>
+              {importPhase === 'paste' ? (
+                <>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2 mb-3 leading-relaxed">
+                    {t('imp.hint')}
+                  </div>
+                  <textarea
+                    value={importText}
+                    onChange={e => setImportText(e.target.value)}
+                    placeholder={t('imp.placeholder')}
+                    dir="ltr"
+                    className="input w-full h-40 font-mono text-xs resize-y mb-3"
+                  />
+                  <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 mb-3 cursor-pointer">
+                    <input type="checkbox" className="rounded" checked={importCurrentOnly}
+                      onChange={e => setImportCurrentOnly(e.target.checked)} />
+                    {t('imp.currentOnly')}
+                  </label>
+                  <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => setImportOpen(false)} disabled={importing} className="btn btn-ghost btn-sm">{t('imp.close')}</button>
+                    <button onClick={prepareImport} disabled={!importText.trim()} className="btn btn-primary btn-sm">
+                      {t('imp.next')} <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2 mb-3 leading-relaxed">
+                    {t('imp.mapHint')} — <b>{importMap.filter(Boolean).length}</b> / {importMap.length}
+                  </div>
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-lg divide-y divide-slate-100 dark:divide-slate-800 mb-3 max-h-72 overflow-y-auto">
+                    {importParsed?.rows.map((r, i) => (
+                      <div key={i} className={`flex items-center gap-2 px-3 py-2 text-sm ${!importMap[i] ? 'bg-amber-50/60 dark:bg-amber-900/10' : ''}`}>
+                        <span className="flex-1 font-medium text-slate-700 dark:text-slate-200 truncate" dir="auto">{r.name}</span>
+                        <span className="text-slate-300 rtl:rotate-180">→</span>
+                        <select
+                          value={importMap[i] ?? ''}
+                          onChange={e => setImportMap(m => m.map((v, j) => j === i ? e.target.value : v))}
+                          className={`input py-1.5 flex-1 text-xs ${!importMap[i] ? 'border-amber-300 dark:border-amber-700' : ''}`}>
+                          <option value="">— {t('imp.skip')} —</option>
+                          {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <button onClick={() => setImportPhase('paste')} disabled={importing} className="btn btn-ghost btn-sm">
+                      <ChevronLeft className="w-3.5 h-3.5 rtl:rotate-180" /> {t('imp.back')}
+                    </button>
+                    <button onClick={applyImport} disabled={importing || importMap.every(m => !m)} className="btn btn-primary btn-sm">
+                      {importing ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('imp.running')}</> : <><CheckCircle2 className="w-3.5 h-3.5" /> {t('imp.run')}</>}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -518,10 +640,42 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
             {week?.status === 'confirmed' ? t('sched.confirmed') : t('sched.open')}
           </span>
 
+          {/* Registration lock badge */}
+          {week?.status !== 'confirmed' && week?.registration_locked && (
+            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 inline-flex items-center gap-1">
+              <Lock className="w-3 h-3" /> {t('sched.regLocked')}
+            </span>
+          )}
+
           {week?.status !== 'confirmed' && (
             <button onClick={confirmWeek} disabled={confirming} className="btn btn-success btn-sm">
               <Lock className="w-3.5 h-3.5" />
               {confirming ? t('sched.confirming') : t('sched.confirm')}
+            </button>
+          )}
+
+          {/* Close / reopen registration */}
+          {week?.status !== 'confirmed' && (
+            week?.registration_locked ? (
+              <button onClick={reopenRegistration} className="btn btn-ghost btn-sm">
+                <Unlock className="w-3.5 h-3.5" />
+                {t('sched.reopen')}
+              </button>
+            ) : (
+              <button onClick={closeNowAndSend} disabled={closing} className="btn btn-warning btn-sm">
+                <Lock className="w-3.5 h-3.5" />
+                {closing ? t('sched.closing') : t('sched.closeNow')}
+              </button>
+            )
+          )}
+
+          {/* Auto-close settings toggle */}
+          {week?.status !== 'confirmed' && (
+            <button
+              onClick={() => { setAutoAt(toLocalInput(week?.auto_close_at)); setAutoEmail(teamAutoEmail); setAutoPanel(v => !v) }}
+              className={`btn btn-sm ${week?.auto_close_at ? 'btn-primary' : 'btn-ghost'}`}>
+              <Clock className="w-3.5 h-3.5" />
+              {t('sched.autoClose')}
             </button>
           )}
 
@@ -530,7 +684,7 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
             {openingNext ? t('sched.opening') : t('sched.openNext')}
           </button>
 
-          <button onClick={() => { setImportOpen(true); setImportMsg({ ok: true, lines: [] }) }}
+          <button onClick={() => { setImportOpen(true); setImportPhase('paste'); setImportMsg({ ok: true, lines: [] }) }}
             className="btn btn-ghost btn-sm">
             <ClipboardPaste className="w-3.5 h-3.5" />
             {t('imp.button')}
@@ -561,6 +715,46 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
           )}
         </div>
       </div>
+
+      {/* Auto-close settings panel */}
+      {autoPanel && week?.status !== 'confirmed' && (
+        <div className="mb-5 card">
+          <div className="card-body p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+              <Clock className="w-4 h-4" /> {t('sched.autoCloseTitle')}
+            </div>
+            <p className="text-xs text-slate-400">{t('sched.autoCloseHint')}</p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">{t('sched.autoCloseAt')}</label>
+                <input type="datetime-local" value={autoAt} onChange={e => setAutoAt(e.target.value)} className="input w-full" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">{t('sched.autoEmail')}</label>
+                <input type="email" value={autoEmail} onChange={e => setAutoEmail(e.target.value)}
+                  placeholder={t('sched.autoEmailPlaceholder')} className="input w-full" dir="ltr" />
+              </div>
+            </div>
+            {week?.auto_close_at && (
+              <p className="text-xs text-slate-500">
+                ⏰ {t('sched.autoCloseCurrent')} {format(new Date(week.auto_close_at), 'EEE, MMM d · HH:mm')}
+                {week?.auto_closed_at && <span className="text-emerald-600 dark:text-emerald-400"> · {t('sched.autoCloseDone')}</span>}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <button onClick={saveAutoClose} disabled={savingAuto} className="btn btn-primary btn-sm">
+                {savingAuto ? t('sched.autoSaving') : t('common.save')}
+              </button>
+              {autoAt && (
+                <button onClick={() => setAutoAt('')} className="btn btn-ghost btn-sm">
+                  {t('sched.autoCloseClear')}
+                </button>
+              )}
+              <button onClick={() => setAutoPanel(false)} className="btn btn-ghost btn-sm">{t('common.cancel')}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit hint */}
       {agents.length > 0 && (

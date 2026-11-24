@@ -36,6 +36,7 @@ export interface Team {
   weekly_off_days?: number[] | null
   coverage_type?: string | null
   scheduling_mode?: 'self_service' | 'top_down' | 'hybrid'
+  auto_export_email?: string | null
   created_at: string
 }
 
@@ -96,6 +97,9 @@ export interface Week {
   confirmed_at: string | null
   export_url_excel: string | null
   export_url_pdf: string | null
+  registration_locked?: boolean
+  auto_close_at?: string | null
+  auto_closed_at?: string | null
   created_at: string
 }
 

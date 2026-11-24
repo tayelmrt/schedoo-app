@@ -35,7 +35,7 @@ export async function GET() {
   const [{ data: shifts }, { data: requirements }, { data: openWeeks }, { data: teamAgents }] = await Promise.all([
     svc.from('shifts').select('*').eq('team_id', agent.team_id).order('sort_order'),
     svc.from('requirements').select('day_of_week, shift_id, min_agents_required, max_agents').eq('team_id', agent.team_id),
-    svc.from('weeks').select('*').eq('team_id', agent.team_id).eq('status', 'open').order('week_start_date'),
+    svc.from('weeks').select('*').eq('team_id', agent.team_id).eq('status', 'open').eq('registration_locked', false).order('week_start_date'),
     svc.from('agents').select('id, name').eq('team_id', agent.team_id).eq('is_active', true).order('name'),
   ])
 
@@ -98,6 +98,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'أسبوع غير صحيح' }, { status: 400 })
   if (week.status === 'confirmed')
     return NextResponse.json({ error: 'تم تأكيد الجدول ولا يمكن التعديل' }, { status: 400 })
+  if (week.registration_locked)
+    return NextResponse.json({ error: 'تم إغلاق التسجيل لهذا الأسبوع' }, { status: 400 })
 
   // In top-down mode agents cannot self-register
   const { data: teamMode } = await svc.from('teams').select('scheduling_mode').eq('id', agent.team_id).single()

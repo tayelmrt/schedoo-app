@@ -109,6 +109,15 @@ export default function AgentHome() {
     return { full: max != null && count >= max, short: count < min && min > 0, count, max, min }
   }
 
+  // A shift is "needed" on a given day only if the manager set a count (max or min)
+  // for it in the requirements. No count registered → not needed this day → hidden.
+  function isNeeded(day: number, shiftId: string) {
+    const req = requirements.find(r => r.day_of_week === day && r.shift_id === shiftId)
+    const max = req?.max_agents ?? 0
+    const min = req?.min_agents_required ?? 0
+    return (max != null && max > 0) || (min != null && min > 0)
+  }
+
   // Shortage list across the active week (for the smart banner)
   const shortageHints: string[] = []
   if (activeWeek) {
@@ -311,6 +320,11 @@ export default function AgentHome() {
               const dayNum = idx + 1
               const selected = selection[dayNum]
               const selShift = shifts.find(s => s.id === selected)
+              const dayShifts = shifts.filter(s =>
+                !s.closed_for_registration &&
+                (s.is_off || selected === s.id || isNeeded(dayNum, s.id))
+              )
+              const hasWork = dayShifts.some(s => !s.is_off)
               return (
                 <div key={dayNum} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden mb-3">
                   <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -319,8 +333,13 @@ export default function AgentHome() {
                     {selShift && <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{ background: selShift.color_code }} />
                       <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{selShift.name}</span></div>}
                   </div>
+                  {!hasWork && (
+                    <div className="px-4 py-2.5 text-xs text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-800/30">
+                      {t('me.noShiftsNeeded')}
+                    </div>
+                  )}
                   <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {shifts.filter(s => !s.closed_for_registration).map(s => {
+                    {dayShifts.map(s => {
                       const isSel = selected === s.id
                       const cap = myCapacity(dayNum, s.id)
                       const locked = cap.full && !isSel
