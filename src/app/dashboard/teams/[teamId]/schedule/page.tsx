@@ -72,6 +72,8 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
   const [swapSel, setSwapSel]       = useState<{ agentId: string; day: number } | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
+  const [sheetUrl, setSheetUrl]     = useState('')
+  const [pulling, setPulling]       = useState(false)
   const [importing, setImporting]   = useState(false)
   const [importCurrentOnly, setImportCurrentOnly] = useState(true)
   const [importPhase, setImportPhase] = useState<'paste' | 'map'>('paste')
@@ -94,13 +96,14 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
       supabase.from('agents').select('*').eq('team_id', params.teamId).eq('is_active', true).order('created_at'),
       supabase.from('shifts').select('*').eq('team_id', params.teamId).order('sort_order'),
       supabase.from('requirements').select('*').eq('team_id', params.teamId),
-      supabase.from('teams').select('auto_export_email').eq('id', params.teamId).maybeSingle(),
+      supabase.from('teams').select('auto_export_email, sheet_url').eq('id', params.teamId).maybeSingle(),
     ])
 
     setAgents(agentsData ?? [])
     setShifts(shiftsData ?? [])
     setReqs(reqsData ?? [])
     setTeamAutoEmail((teamData as any)?.auto_export_email ?? '')
+    setSheetUrl((teamData as any)?.sheet_url ?? '')
 
     // Fetch or create week
     let { data: weekData } = await supabase.from('weeks')
@@ -272,6 +275,59 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
     })
     // Only auto-pick a clear, confident winner; else leave for the manager.
     return (best >= 0.9 && best - second >= 0.25) ? bestI : -1
+  }
+
+  // Parse CSV (handles quoted fields with commas/newlines) into a grid,
+  // then re-emit as tab-separated text so the existing parseSheet() works.
+  function csvToTsv(csv: string): string {
+    const rows: string[][] = []
+    let row: string[] = [], field = '', inQ = false
+    const s = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i]
+      if (inQ) {
+        if (c === '"') { if (s[i+1] === '"') { field += '"'; i++ } else inQ = false }
+        else field += c
+      } else if (c === '"') inQ = true
+      else if (c === ',') { row.push(field); field = '' }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = '' }
+      else field += c
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row) }
+    return rows.map(r => r.join('\t')).join('\n')
+  }
+
+  // Pull the final schedule straight from the configured Google Sheet link,
+  // then drop into the same name-mapping review as a paste.
+  async function fetchFromSheet() {
+    const url = sheetUrl.trim()
+    if (!url) { setImportMsg({ ok: false, lines: [t('imp.needUrl')] }); return }
+    setPulling(true)
+    setImportMsg({ ok: true, lines: [] })
+    try {
+      // Remember the link on the team for next time (one-click after this).
+      await supabase.from('teams').update({ sheet_url: url }).eq('id', params.teamId)
+      const res  = await fetch(`/api/import-sheet?url=${encodeURIComponent(url)}`)
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
+      const tsv = csvToTsv(json.csv ?? '')
+      setImportText(tsv)
+      const parsed = parseSheet(tsv)
+      if (!parsed.headerFound) { setImportMsg({ ok: false, lines: [t('imp.noDates')] }); setPulling(false); return }
+      if (parsed.rows.length === 0) { setImportMsg({ ok: false, lines: [t('imp.noRows')] }); setPulling(false); return }
+      const used = new Set<number>()
+      const map = parsed.rows.map(r => {
+        const gi = guessAgent(r.name)
+        if (gi >= 0 && !used.has(gi)) { used.add(gi); return agents[gi].id }
+        return ''
+      })
+      setImportParsed({ colDates: parsed.colDates, rows: parsed.rows })
+      setImportMap(map)
+      setImportPhase('map')
+    } catch (e: any) {
+      setImportMsg({ ok: false, lines: [e.message] })
+    }
+    setPulling(false)
   }
 
   function prepareImport() {
@@ -534,6 +590,27 @@ export default function SchedulePage({ params }: { params: { teamId: string } })
 
               {importPhase === 'paste' ? (
                 <>
+                  {/* Pull straight from the Google Sheet link (no copy/paste) */}
+                  <div className="rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-900/15 px-3 py-3 mb-3">
+                    <div className="text-xs font-bold text-blue-800 dark:text-blue-300 mb-1">🔗 {t('imp.sheetTitle')}</div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">{t('imp.sheetHint')}</p>
+                    <div className="flex items-center gap-2">
+                      <input value={sheetUrl} onChange={e => setSheetUrl(e.target.value)}
+                        placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=..."
+                        dir="ltr" className="input flex-1 text-xs" />
+                      <button onClick={fetchFromSheet} disabled={pulling || !sheetUrl.trim()} className="btn btn-primary btn-sm whitespace-nowrap">
+                        {pulling ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('imp.pulling')}</> : <><Download className="w-3.5 h-3.5" /> {t('imp.sheetPull')}</>}
+                      </button>
+                    </div>
+                    <label className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300 mt-2 cursor-pointer">
+                      <input type="checkbox" className="rounded" checked={importCurrentOnly}
+                        onChange={e => setImportCurrentOnly(e.target.checked)} />
+                      {t('imp.currentOnly')}
+                    </label>
+                  </div>
+
+                  <div className="text-[11px] text-center text-slate-400 mb-3">— {t('imp.orPaste')} —</div>
+
                   <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2 mb-3 leading-relaxed">
                     {t('imp.hint')}
                   </div>

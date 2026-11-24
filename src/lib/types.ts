@@ -37,6 +37,7 @@ export interface Team {
   coverage_type?: string | null
   scheduling_mode?: 'self_service' | 'top_down' | 'hybrid'
   auto_export_email?: string | null
+  sheet_url?: string | null
   created_at: string
 }
 
