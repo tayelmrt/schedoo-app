@@ -7,7 +7,7 @@ import { createClient }        from '@/lib/supabase/client'
 import { useApp }              from '@/lib/providers'
 import { getMe }               from '@/lib/me'
 import {
-  CalendarCheck, CalendarDays, Plane, LogOut, Menu, X, Loader2, Clock, AlertCircle,
+  CalendarCheck, CalendarDays, Plane, LogOut, Menu, X, Loader2, Clock,
   Sun, Moon, Languages,
 } from 'lucide-react'
 
@@ -20,12 +20,14 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   const [view, setView]   = useState<'loading'|'pending'|'no-agent'|'ok'>('loading')
   const [name, setName]   = useState('')
   const [team, setTeam]   = useState('')
+  const [email, setEmail] = useState('')
   const [open, setOpen]   = useState(false)
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser()
       if (!data.user) { router.replace('/auth/login'); return }
+      setEmail(data.user.email ?? '')
       const me = await getMe().catch(() => null)
       if (!me) { setView('no-agent'); return }
       if (me.isManager) { router.replace('/dashboard'); return }
@@ -65,9 +67,15 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-8 max-w-md text-center">
-          <AlertCircle className="w-14 h-14 text-red-300 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">{t('me.noAccessTitle')}</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">{t('me.noAccessDesc')}</p>
+          <Clock className="w-14 h-14 text-blue-400 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">{t('me.noTeamTitle')}</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">{t('me.noTeamDesc')}</p>
+          {email && (
+            <div className="mt-4 bg-slate-50 dark:bg-slate-800/60 rounded-lg px-4 py-3">
+              <div className="text-[11px] text-slate-400 mb-0.5">{t('me.noTeamEmailLabel')}</div>
+              <div className="font-mono text-sm font-semibold text-slate-700 dark:text-slate-200 break-all" dir="ltr">{email}</div>
+            </div>
+          )}
           <button onClick={signOut} className="btn btn-ghost mt-6 mx-auto"><LogOut className="w-4 h-4" /> {t('me.exit')}</button>
         </div>
       </div>
