@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient }        from '@/lib/supabase/client'
 import Link                    from 'next/link'
-import { Plus, Trash2, ArrowRightLeft, X, Link2, Copy, RefreshCw, KeyRound } from 'lucide-react'
+import { Plus, Trash2, ArrowRightLeft, X, Link2, Copy, RefreshCw, KeyRound, Pencil } from 'lucide-react'
 import type { Agent }          from '@/lib/types'
 import { useApp }              from '@/lib/providers'
 
@@ -28,6 +28,22 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
   const [resetting, setResetting] = useState(false)
   const [resetDone, setResetDone] = useState(false)
   const [resetErr, setResetErr]   = useState('')
+  const [editAgent, setEditAgent] = useState<Agent | null>(null)
+  const [editName, setEditName]   = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+
+  async function doEdit() {
+    if (!editAgent || !editName.trim()) return
+    setEditSaving(true)
+    await supabase.from('agents').update({
+      name: editName.trim(),
+      email: editEmail.trim() ? editEmail.trim().toLowerCase() : null,
+    }).eq('id', editAgent.id)
+    setEditSaving(false)
+    setEditAgent(null)
+    fetchAgents()
+  }
 
   async function doReset() {
     if (!resetAgent || newPass.length < 6) return
@@ -208,6 +224,11 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
                           className="text-xs text-slate-400 hover:text-amber-600 underline mx-2">{t('agents.revoke')}</button>
                       )}
                       <div className="flex items-center justify-end gap-3">
+                        <button onClick={() => { setEditAgent(a); setEditName(a.name); setEditEmail(a.email ?? '') }}
+                          title={t('agents.editName')}
+                          className="text-slate-400 hover:text-blue-600 transition-colors">
+                          <Pencil className="w-4 h-4" />
+                        </button>
                         <button onClick={() => { setResetAgent(a); setNewPass(''); setResetDone(false); setResetErr('') }}
                           title={t('agents.resetPw')}
                           className="text-slate-400 hover:text-blue-600 transition-colors">
@@ -272,6 +293,36 @@ export default function AgentsPage({ params }: { params: { teamId: string } }) {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit agent modal */}
+      {editAgent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setEditAgent(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-blue-500" /> {t('agents.editTitle')}
+              </h3>
+              <button onClick={() => setEditAgent(null)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mb-4">{t('agents.editHint')}</p>
+            <label className="label">{t('agents.colAgent')}</label>
+            <input className="input mb-3" value={editName} onChange={e => setEditName(e.target.value)}
+              placeholder={t('agents.namePlaceholder')} />
+            <label className="label">{t('agents.colEmail')}</label>
+            <input className="input mb-5" type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)}
+              placeholder={t('agents.emailPlaceholder')} dir="ltr" />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setEditAgent(null)} className="btn btn-ghost">{t('common.cancel')}</button>
+              <button onClick={doEdit} disabled={!editName.trim() || editSaving} className="btn btn-primary">
+                {editSaving ? t('agents.saving') : t('common.save')}
+              </button>
+            </div>
           </div>
         </div>
       )}
