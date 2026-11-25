@@ -5,7 +5,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import ExcelJS                 from 'exceljs'
 import jsPDF                   from 'jspdf'
 import autoTable               from 'jspdf-autotable'
-import nodemailer              from 'nodemailer'
+import { Resend }             from 'resend'
 import { format, addDays, parseISO } from 'date-fns'
 import { DAYS }                from '@/lib/types'
 
@@ -236,8 +236,10 @@ export async function exportWeek(weekId: string): Promise<ExportResult> {
       .map(e => (e ?? '').trim().toLowerCase())
       .filter(Boolean)
   ))
-  const gmailUser = process.env.GMAIL_USER
-  const gmailPass = process.env.GMAIL_APP_PASSWORD
+  const resendKey  = process.env.RESEND_API_KEY
+  // Verified-domain sender if configured, else Resend's shared sandbox address
+  // (which only delivers to the Resend account owner's own email).
+  const fromAddr   = process.env.RESEND_FROM ?? 'Schedoo <onboarding@resend.dev>'
   let emailStatus: { sent: boolean; error?: string } = { sent: false }
 
   // Build an inline HTML table of the full schedule (so all data is IN the email)
@@ -273,18 +275,15 @@ export async function exportWeek(weekId: string): Promise<ExportResult> {
 
   if (recipients.length === 0) {
     emailStatus = { sent: false, error: 'لا يوجد إيميلات مانجر — أضفهم من إعدادات التيم' }
-  } else if (!gmailUser || !gmailPass) {
-    emailStatus = { sent: false, error: 'إعدادات Gmail غير مضبوطة (GMAIL_USER / GMAIL_APP_PASSWORD)' }
+  } else if (!resendKey) {
+    emailStatus = { sent: false, error: 'إعدادات Resend غير مضبوطة (RESEND_API_KEY)' }
   } else {
     try {
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: gmailUser, pass: gmailPass },
-      })
+      const resend = new Resend(resendKey)
 
-      await transporter.sendMail({
-        from:    `Schedoo <${gmailUser}>`,
-        to:      recipients.join(', '),
+      const { error: sendErr } = await resend.emails.send({
+        from:    fromAddr,
+        to:      recipients,
         subject: `📅 جدول ${team} — ${weekLabel}`,
         attachments: [
           { filename: `schedule-${week.week_start_date}.xlsx`, content: excelBuffer },
@@ -311,7 +310,9 @@ export async function exportWeek(weekId: string): Promise<ExportResult> {
           </div>
         `,
       })
-      emailStatus = { sent: true }
+      emailStatus = sendErr
+        ? { sent: false, error: sendErr.message ?? 'فشل إرسال الإيميل (Resend)' }
+        : { sent: true }
     } catch (e: any) {
       emailStatus = { sent: false, error: e?.message ?? 'فشل إرسال الإيميل' }
     }
